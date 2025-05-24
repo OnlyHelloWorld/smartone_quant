@@ -1,0 +1,4 @@
+pip install pandas --upgrade -t D:\gjzqqmt\bin.x64\Lib\site-packages
+pip install TA-Lib --upgrade -t D:\gjzqqmt\bin.x64\Lib\site-packages
+Writing default config to: C:\Users\Administrator\.jupyter\jupyter_notebook_config.py
+[JupyterPasswordApp] Wrote hashed password to C:\Users\Administrator\.jupyter\jupyter_server_config.json #密码：1234 端口号：8888
