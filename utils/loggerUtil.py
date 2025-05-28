@@ -5,7 +5,7 @@ import logging
 import os
 from datetime import datetime
 
-def init_logger(name="miniqmt_quant", log_dir="logs"):
+def init_logger(name="smartone_quant", log_dir="logs"):
     """
     初始化一个日志记录器，将日志信息同时输出到文件和控制台。
 

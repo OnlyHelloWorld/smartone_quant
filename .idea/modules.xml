@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/miniqmt_quant.iml" filepath="$PROJECT_DIR$/.idea/miniqmt_quant.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/smartone_quant.iml" filepath="$PROJECT_DIR$/.idea/smartone_quant.iml" />
     </modules>
   </component>
 </project>

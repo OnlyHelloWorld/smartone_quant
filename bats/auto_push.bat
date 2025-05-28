@@ -1,7 +1,7 @@
 @echo off
 
 REM Change to your project directory
-cd C:\Users\Administrator\AppData\Local\Programs\Python\miniqmt_quant
+cd C:\Users\Administrator\AppData\Local\Programs\Python\smartone_quant
 
 REM Add all changes
 git add .
