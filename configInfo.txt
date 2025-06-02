@@ -1,2 +1,1 @@
 Writing default config to: C:\Users\Administrator\.jupyter\jupyter_lab_config.py
-C:\Users\Administrator\AppData\Local\Programs\Python\Python312\python.exe -m jupyterlab --no-browser --allow-root --notebook-dir=C:\Users\Administrator\AppData\Local\Programs\Python\Python312
