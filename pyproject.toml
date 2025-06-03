@@ -5,5 +5,12 @@ description = "smartone quant trading bot"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "backtrader>=1.9.78.123",
+    "email-validator>=2.2.0",
+    "fastapi>=0.115.12",
+    "pydantic[email]>=2.11.5",
+    "pydantic-settings>=2.9.1",
+    "sentry-sdk>=2.29.1",
+    "starlette>=0.46.2",
     "xtquant>=241014.1.2",
 ]
