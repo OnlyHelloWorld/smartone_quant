@@ -52,10 +52,10 @@ class Settings(BaseSettings):
     FRONTEND_HOST: str = "http://localhost:5173"
     # 环境类型：本地、预发布或生产，默认为本地
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
-    # 后端 CORS 配置，支持字符串或列表格式
+    # 后端 CORS 允许的源地址列表, 默认为*, 允许所有源
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)
-    ] = []
+    ] = ["*"]
 
     @computed_field  # type: ignore[prop-decorator]
     @property
