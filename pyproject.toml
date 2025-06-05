@@ -15,4 +15,6 @@ dependencies = [
     "xtquant>=241014.1.2",
     "pyjwt<3.0.0,>=2.8.0",
     "sqlmodel>=0.0.24",
+    "passlib>=1.7.4",
+    "pymysql>=1.1.1",
 ]

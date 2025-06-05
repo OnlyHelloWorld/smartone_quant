@@ -2,9 +2,12 @@ from sqlmodel import Session, create_engine, select
 
 from app import crud
 from app.core.config import settings
-from app.models import User, UserCreate
+from app.models.qmt_sector import QmtSector
+from app.models.qmt_sector_stock import QmtSectorStock
+from app.models.Smart_User import User, UserCreate
 
 engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
+
 
 # 确保在初始化数据库前已导入所有 SQLModel 模型（app.models）
 # 否则，SQLModel 可能无法正确初始化关系

@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     应用程序配置类，使用 Pydantic 进行设置管理。
     包含数据库连接、CORS、邮件服务等配置。
     """
-    # 使用顶层 .env 文件（位于 ./backend/ 上一级目录）
+    # 使用顶层 .env 文件（位于 ./app/ 上一级目录）
     model_config = SettingsConfigDict(
         env_file="../.env",
         # 忽略空环境变量
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     # 后端 CORS 允许的源地址列表, 默认为*, 允许所有源
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)
-    ] = ["*"]
+    ] = []
 
     @computed_field  # type: ignore[prop-decorator]
     @property
