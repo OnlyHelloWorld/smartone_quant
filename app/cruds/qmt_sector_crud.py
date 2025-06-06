@@ -29,3 +29,7 @@ def get_qmt_sector_by_name(*, session: Session, name: str) -> QmtSector | None:
     statement = select(QmtSector).where(QmtSector.sector_name == name)
     session_qmt_sector = session.exec(statement).first()
     return session_qmt_sector
+
+def delete_all_qmt_sectors(session: Session):
+    session.exec("DELETE FROM qmt_sector")
+    session.commit()

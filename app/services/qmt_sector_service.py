@@ -4,7 +4,7 @@ from sqlmodel import Session
 
 from xtquant import xtdata
 from app.models.qmt_sector import QmtSector
-from app.cruds.qmt_sector_crud import create_qmt_sector, get_qmt_sector_by_name
+from app.cruds.qmt_sector_crud import create_qmt_sector, get_qmt_sector_by_name, delete_all_qmt_sectors
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,8 @@ def sync_sector_list_to_db(db: Session) -> List[QmtSector]:
         Exception: 当获取板块列表失败或数据库操作失败时抛出
     """
     try:
+        # 同步前先删除旧数据
+        delete_all_qmt_sectors(db)
         # 从QMT获取板块列表
         sector_list: List[str] = xtdata.get_sector_list()
         if not sector_list:
@@ -62,3 +64,18 @@ def sync_sector_list_to_db(db: Session) -> List[QmtSector]:
     except Exception as e:
         logger.error(f"同步板块列表失败: {str(e)}")
         raise
+
+# 增加 main
+if __name__ == "__main__":
+    from sqlmodel import create_engine, Session
+    from app.core.config  import settings
+
+    # 创建数据库引擎
+    engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, echo=True)
+
+    # 创建数据库表
+    QmtSector.metadata.create_all(engine)
+
+    # 同步板块列表到数据库
+    with Session(engine) as session:
+        sync_sector_list_to_db(session)
