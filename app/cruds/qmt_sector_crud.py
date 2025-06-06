@@ -1,4 +1,4 @@
-import uuid
+from sqlalchemy import text
 from typing import Any
 
 from sqlmodel import Session, select
@@ -31,5 +31,5 @@ def get_qmt_sector_by_name(*, session: Session, name: str) -> QmtSector | None:
     return session_qmt_sector
 
 def delete_all_qmt_sectors(session: Session):
-    session.exec("DELETE FROM qmt_sector")
+    session.exec(text(f"DELETE FROM qmt_sector"))
     session.commit()

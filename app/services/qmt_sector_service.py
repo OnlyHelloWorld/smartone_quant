@@ -70,11 +70,8 @@ if __name__ == "__main__":
     from sqlmodel import create_engine, Session
     from app.core.config  import settings
 
-    # 创建数据库引擎
-    engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, echo=True)
-
-    # 创建数据库表
-    QmtSector.metadata.create_all(engine)
+    # 创建Mysql数据库引擎
+    engine = create_engine(settings.SQLALCHEMY_MYSQL_DATABASE_URI, echo=True)
 
     # 同步板块列表到数据库
     with Session(engine) as session:
