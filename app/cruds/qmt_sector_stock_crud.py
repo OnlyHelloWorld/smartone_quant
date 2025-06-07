@@ -1,4 +1,4 @@
-from sqlmodel import Session, select
+from sqlmodel import Session, select, delete
 from app.models.qmt_sector_stock import QmtSectorStock
 
 """
@@ -20,10 +20,28 @@ def update_qmt_sector_stock(*, session: Session, db_qmt_sector_stock: QmtSectorS
     session.refresh(db_qmt_sector_stock)
     return db_qmt_sector_stock
 
+def delete_qmt_sector_stocks_by_sector_id(session: Session, sector_id: int) -> int:
+    """
+    删除指定板块ID的所有成分股
+
+    Args:
+        session: 数据库会话
+        sector_id: 板块ID
+
+    Returns:
+        int: 删除的记录数量
+
+    Raises:
+        Exception: 当数据库操作失败时抛出
+    """
+    statement = delete(QmtSectorStock).where(QmtSectorStock.sector_id == sector_id)
+    result = session.exec(statement)
+    session.commit()
+    return result.rowcount
+
 # 根据板块ID和股票代码获取成分股
 def get_qmt_sector_stock_by_sector_and_code(*, session: Session, sector_id: int, stock_code: str) -> QmtSectorStock | None:
     statement = select(QmtSectorStock).where(
         (QmtSectorStock.sector_id == sector_id) & (QmtSectorStock.stock_code == stock_code)
     )
     return session.exec(statement).first()
-
