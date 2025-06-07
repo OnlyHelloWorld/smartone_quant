@@ -37,3 +37,21 @@ def get_qmt_sector_by_name(*, session: Session, name: str) -> QmtSector | None:
 def delete_all_qmt_sectors(session: Session):
     session.exec(text(f"DELETE FROM qmt_sector"))
     session.commit()
+
+
+# main函数用于单独调试
+if __name__ == "__main__":
+    from sqlmodel import create_engine, Session
+    from app.core.config import settings
+
+    engine = create_engine(settings.SQLALCHEMY_MYSQL_DATABASE_URI, echo=True)
+
+    with Session(engine) as session:
+        # 获取沪深A股板块，通过get_qmt_sector_by_name
+
+        sector_name = "沪深A股"
+        sector = get_qmt_sector_by_name(session=session, name=sector_name)
+        if not sector:
+            print("数据库中没有板块数据，请先同步板块列表")
+        else:
+            print(f"板块ID: {sector.id}, 板块名称: {sector.sector_name}")
