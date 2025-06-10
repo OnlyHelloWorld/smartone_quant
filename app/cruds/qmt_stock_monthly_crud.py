@@ -16,6 +16,24 @@ def delete_monthly_klines_by_stock_code(*, session: Session, stock_code: str):
     session.exec(select(QmtStockMonthlyOri).where(QmtStockMonthlyOri.stock_code == stock_code)).delete()
     session.commit()
 
+# 删除该日期段内的旧数据并返回删除条数
+def delete_monthly_klines_by_stock_code_and_date_range(
+    *,
+    session: Session,
+    stock_code: str,
+    start_time: datetime,
+    end_time: datetime
+) -> int:
+    """删除指定股票在时间范围内的月K线数据"""
+    statement = select(QmtStockMonthlyOri).where(
+        QmtStockMonthlyOri.stock_code == stock_code,
+        QmtStockMonthlyOri.time >= start_time,
+        QmtStockMonthlyOri.time <= end_time
+    )
+    deleted_count = session.exec(statement).delete()
+    session.commit()
+    return deleted_count
+
 def get_monthly_klines_by_stock_code_and_date_range(
     *,
     session: Session,
