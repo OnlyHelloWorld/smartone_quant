@@ -8,6 +8,7 @@ from app.cruds.qmt_sector_crud import delete_all_qmt_sectors
 
 logger = logging.getLogger(__name__)
 
+
 def sync_sector_list_to_db(db: Session) -> List[QmtSector]:
     """
     从QMT获取板块列表并批量同步到数据库
@@ -23,29 +24,27 @@ def sync_sector_list_to_db(db: Session) -> List[QmtSector]:
     """
     try:
         # 同步前先删除旧数据
-        delete_all_qmt_sectors(db)
+        logger.info("开始同步QMT板块列表到数据库，先删除旧数据")
+        deleted: int = delete_all_qmt_sectors(db)
+        logger.info(f'已删除旧数据，删除数量: {deleted}')
 
         # 从QMT获取板块列表
+        logger.info("从QMT获取板块列表...")
         sector_list: List[str] = xtdata.get_sector_list()
         if not sector_list:
             logger.warning("从QMT获取板块列表为空")
             return []
-
         logger.info(f"从QMT获取到{len(sector_list)}个板块")
 
         try:
             # 批量创建QmtSector对象
+            logger.info("开始批量插入板块到数据库...")
             sectors_to_insert: List[QmtSector] = [QmtSector(sector_name=name) for name in sector_list]
 
-            # 批量插入数据库
-            db.bulk_save_objects(sectors_to_insert)
+            # 批量插入数据库并获取成功插入的条数
+            db.add_all(sectors_to_insert)
             db.commit()
-
-            # 刷新对象以获取数据库生成的ID
-            for sector in sectors_to_insert:
-                db.refresh(sector)
-
-            logger.info(f"本次同步完成，成功批量插入{len(sectors_to_insert)}个板块")
+            logger.info(f"成功批量插入{len(sectors_to_insert)}个板块到数据库")
             return sectors_to_insert
 
         except Exception as e:
@@ -57,10 +56,11 @@ def sync_sector_list_to_db(db: Session) -> List[QmtSector]:
         logger.error(f"同步板块列表失败: {str(e)}")
         raise
 
+
 # 增加 main
 if __name__ == "__main__":
     from sqlmodel import create_engine, Session
-    from app.core.config  import settings
+    from app.core.config import settings
 
     # 创建Mysql数据库引擎
     engine = create_engine(settings.SQLALCHEMY_MYSQL_DATABASE_URI, echo=True)

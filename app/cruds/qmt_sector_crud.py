@@ -33,10 +33,17 @@ def get_qmt_sector_by_name(*, session: Session, name: str) -> QmtSector | None:
     session_qmt_sector = session.exec(statement).first()
     return session_qmt_sector
 
-
-def delete_all_qmt_sectors(session: Session):
-    session.exec(text(f"DELETE FROM qmt_sector"))
+# 删除所有QmtSector板块数据并返回删除的数量
+def delete_all_qmt_sectors(session: Session) -> int:
+    """
+    删除所有QmtSector板块数据并返回删除的数量
+    :param session: 数据库会话
+    :return: 删除的数量
+    """
+    statement = text(f"DELETE FROM {QmtSector.__tablename__}")
+    result = session.exec(statement)
     session.commit()
+    return result.rowcount
 
 
 # main函数用于单独调试
