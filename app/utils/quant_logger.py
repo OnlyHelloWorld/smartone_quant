@@ -6,7 +6,7 @@ from typing import Optional
 class LoggerFactory:
     @staticmethod
     def get_logger(
-        name: Optional[str] = None,
+        name: Optional[str] =   None,
         log_dir: str = "logs",
         level: int = logging.INFO,
         to_console: bool = True

@@ -82,6 +82,17 @@ def get_qmt_sector_stocks_by_sector_name(*, session: Session, sector_name: str) 
     logging.info(f"板块[{sector_name}]获取到{len(sector_stocks)}个成分股")
     return sector_stocks
 
+# 删除所有QmtSectorStock表数据并返回删除的数量
+def delete_all_qmt_sector_stocks(session: Session) -> int:
+    """
+    删除所有QmtSectorStock表数据并返回删除的数量
+    :param session: 数据库会话
+    :return: 删除的数量
+    """
+    statement = delete(QmtSectorStock)
+    result = session.exec(statement)
+    session.commit()
+    return result.rowcount
 
 # main函数用于单独调试
 if __name__ == "__main__":

@@ -1,5 +1,4 @@
 from datetime import datetime
-import logging
 from sqlmodel import Session
 
 from xtquant import xtdata

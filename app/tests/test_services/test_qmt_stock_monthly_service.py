@@ -1,10 +1,8 @@
 import unittest
-from unittest.mock import patch, MagicMock
-from datetime import datetime
+from unittest.mock import patch
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.services.qmt_stock_monthly_service import sync_stock_monthly_klines_to_db
-from app.models.qmt_stock_monthly import QmtStockMonthlyOri
 from app.core.config import settings
 from utils.quant_logger import LoggerFactory
 
