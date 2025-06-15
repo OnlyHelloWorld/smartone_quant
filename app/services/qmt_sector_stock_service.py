@@ -1,13 +1,13 @@
 from typing import List, Dict
-import logging
 from sqlmodel import Session, select
 
 from xtquant import xtdata
 from app.models.qmt_sector import QmtSector
 from app.models.qmt_sector_stock import QmtSectorStock
 from app.cruds.qmt_sector_stock_crud import delete_qmt_sector_stocks_by_sector_id
+from utils.quant_logger import LoggerFactory
 
-logger = logging.getLogger(__name__)
+logger = LoggerFactory.get_logger(__name__)
 
 def sync_sector_stocks_to_db(db: Session) -> Dict[str, List[QmtSectorStock]]:
     """

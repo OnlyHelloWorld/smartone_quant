@@ -30,7 +30,7 @@ def should_include_sector(sector_name: str) -> bool:
     """
     return any(sector_name.startswith(prefix) for prefix in ALLOWED_PREFIXES)
 
-def sync_sector_and_stocks_to_db(db: Session) -> Tuple[List[QmtSector], Dict[str, List[str]]]:
+def sync_sector_and_stocks_to_db(db: Session) -> List[str]:
     """
     从QMT获取板块列表及其成分股并同步到数据库
     仅同步指定前缀的板块：GN TGN THY 1000SW 500SW 300 300SW HKSW SW1 SW2 SW3 CSRC
@@ -39,12 +39,10 @@ def sync_sector_and_stocks_to_db(db: Session) -> Tuple[List[QmtSector], Dict[str
         db: 数据库会话
 
     Returns:
-        Tuple[List[QmtSector], Dict[str, List[str]]]:
-            - 成功插入的板块列表
-            - 以板块名为key，成分股代码列表为value的字典
+        List[str]: 同步失败的板块列表
 
     Raises:
-        Exception: 当获取板块列表失败或数据库操作失败时抛出
+        Exception: 当获取板块列表失败时抛出
     """
     try:
         # 记录开始时间
@@ -56,7 +54,7 @@ def sync_sector_and_stocks_to_db(db: Session) -> Tuple[List[QmtSector], Dict[str
         sector_list: List[str] = xtdata.get_sector_list()
         if not sector_list:
             logger.warning("从QMT获取板块列表为空")
-            return [], {}
+            return []
         logger.info(f"从QMT获取到{len(sector_list)}个板块")
 
         # 删除所有旧数据
@@ -67,12 +65,11 @@ def sync_sector_and_stocks_to_db(db: Session) -> Tuple[List[QmtSector], Dict[str
         logger.info(f'已删除旧成分股数据，删除数量: {deleted_stocks}')
 
         # 用于存储结果
-        inserted_sectors: List[QmtSector] = []
-        sector_stocks_map: Dict[str, List[str]] = {}
-        skipped_sectors = []
-
-        # 按前缀分类计数器
-        prefix_counts = {prefix: 0 for prefix in ALLOWED_PREFIXES}
+        failed_sectors: List[str] = []
+        skipped_sectors: List[str] = []
+        processed_count = 0
+        success_count = 0
+        current_sector_id = 0  # 板块ID从0开始
 
         # 遍历处理每个板块
         for sector_name in sector_list:
@@ -82,71 +79,66 @@ def sync_sector_and_stocks_to_db(db: Session) -> Tuple[List[QmtSector], Dict[str
                     skipped_sectors.append(sector_name)
                     continue
 
-                # 更新前缀计数
-                for prefix in ALLOWED_PREFIXES:
-                    if sector_name.startswith(prefix):
-                        prefix_counts[prefix] += 1
-                        break
+                processed_count += 1
 
                 logger.info(f"开始处理板块[{sector_name}]...")
 
                 # 获取该板块的成分股
                 stock_codes: List[str] = xtdata.get_stock_list_in_sector(sector_name)
 
-                # 创建板块记录
-                sector = QmtSector(sector_name=sector_name)
-                db.add(sector)
-                db.flush()  # 获取板块ID
-
                 if not stock_codes:
                     logger.warning(f"板块[{sector_name}]没有成分股")
-                    sector_stocks_map[sector_name] = []
+                    failed_sectors.append(f"{sector_name}(无成分股)")
                     continue
+
+                # 创建板块记录，使用递增的ID
+                sector = QmtSector(id=current_sector_id, sector_name=sector_name)
+                db.add(sector)
+                db.flush()
 
                 logger.info(f"板块[{sector_name}]获取到{len(stock_codes)}个成分股")
 
                 # 批量创建该板块的成分股记录
                 sector_stocks = [
                     QmtSectorStock(
-                        sector_id=sector.id,
+                        sector_id=current_sector_id,
                         stock_code=code
                     ) for code in stock_codes
                 ]
 
                 db.add_all(sector_stocks)
-                sector_stocks_map[sector_name] = stock_codes
-                inserted_sectors.append(sector)
                 db.commit()
 
-                logger.info(f"板块[{sector_name}]及其{len(stock_codes)}个成分股数据已插入")
+                logger.info(f"板块[{sector_name}](ID:{current_sector_id})及其{len(stock_codes)}个成分股数据已插入")
+                current_sector_id += 1  # 板块ID递增
+                success_count += 1
 
             except Exception as e:
-                logger.error(f"处理板块[{sector_name}]时发生错误: {str(e)}")
+                db.rollback()
+                error_msg = str(e)
+                logger.error(f"处理板块[{sector_name}]时发生错误: {error_msg}")
+                failed_sectors.append(f"{sector_name}({error_msg})")
                 continue
 
         end_time = datetime.datetime.now()
         logger.info(f"同步完成，结束时间: {end_time}, 总耗时: {end_time - start_time}")
 
-        # 输出每个前缀的板块数量统计
-        logger.info("各类板块数量统计:")
-        for prefix, count in prefix_counts.items():
-            if count > 0:
-                logger.info(f"{prefix}: {count}个板块")
+        # 输出统计信息
+        logger.info("\n=== 同步结果统计 ===")
+        logger.info(f"跳过的板块数量: {len(skipped_sectors)}")
+        logger.info(f"处理的板块数量: {processed_count}")
+        logger.info(f"成功同步数量: {success_count}")
+        logger.info(f"失败的板块数量: {len(failed_sectors)}")
 
-        logger.info(f"成功同步{len(inserted_sectors)}个板块，包含成分股的板块数: {len([k for k, v in sector_stocks_map.items() if v])}")
+        # 如果有失败的板块，输出详细信息
+        if failed_sectors:
+            logger.info("\n=== 同步失败的板块 ===")
+            for sector in failed_sectors:
+                logger.info(f"- {sector}")
 
-        # 报告包含成分股最多的十个板块
-        if sector_stocks_map:
-            sorted_sectors = sorted(sector_stocks_map.items(), key=lambda x: len(x[1]), reverse=True)
-            top_sectors = sorted_sectors[:10]
-            logger.info("包含成分股最多的十个板块:")
-            for sector_name, stocks in top_sectors:
-                logger.info(f"板块[{sector_name}] - 成分股数量: {len(stocks)}")
-
-        return inserted_sectors, sector_stocks_map
+        return failed_sectors
 
     except Exception as e:
-        db.rollback()
         logger.error(f"同步板块及成分股数据失败: {str(e)}")
         raise
 
