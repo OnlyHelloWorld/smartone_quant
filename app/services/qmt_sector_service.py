@@ -11,29 +11,29 @@ from utils.quant_logger import LoggerFactory
 
 logger = LoggerFactory.get_logger(__name__)
 
-# 需要过滤的板块名称关键词
-FILTERED_KEYWORDS = {
-    "上期所", "A股", "期权", "转债", "中金所", "大商所",
-    "债券", "基金", "指数", "B股", "科创板", "合约",
-    "郑商所", "香港联交所", "ETF", "能源中心", "沪深",
-    "股票", "转债", "等权"
+# 允许的板块前缀列表
+ALLOWED_PREFIXES = {
+    "GN", "TGN", "THY", "1000SW", "500SW",
+    "300", "300SW", "HKSW",
+    "SW1", "SW2", "SW3", "CSRC"
 }
 
-def should_skip_sector(sector_name: str) -> bool:
+def should_include_sector(sector_name: str) -> bool:
     """
-    检查板块名称是否包含需要过滤的关键词
+    检查板块名称是否以允许的前缀开头
 
     Args:
         sector_name: 板块名称
 
     Returns:
-        bool: 如果包含需要过滤的关键词返回True，否则返回False
+        bool: 如果以允许的前缀开头返回True，否则返回False
     """
-    return any(keyword in sector_name for keyword in FILTERED_KEYWORDS)
+    return any(sector_name.startswith(prefix) for prefix in ALLOWED_PREFIXES)
 
 def sync_sector_and_stocks_to_db(db: Session) -> Tuple[List[QmtSector], Dict[str, List[str]]]:
     """
     从QMT获取板块列表及其成分股并同步到数据库
+    仅同步指定前缀的板块：GN TGN THY 1000SW 500SW 300 300SW HKSW SW1 SW2 SW3 CSRC
 
     Args:
         db: 数据库会话
@@ -59,11 +59,10 @@ def sync_sector_and_stocks_to_db(db: Session) -> Tuple[List[QmtSector], Dict[str
             return [], {}
         logger.info(f"从QMT获取到{len(sector_list)}个板块")
 
-        # 删除所有旧板块数据
+        # 删除所有旧数据
         logger.info("删除所有板块和成分股旧数据...")
         deleted_sectors = delete_all_qmt_sectors(db)
         logger.info(f'已删除旧板块数据，删除数量: {deleted_sectors}')
-        # 删除所有旧成分股数据
         deleted_stocks = delete_all_qmt_sector_stocks(db)
         logger.info(f'已删除旧成分股数据，删除数量: {deleted_stocks}')
 
@@ -72,14 +71,22 @@ def sync_sector_and_stocks_to_db(db: Session) -> Tuple[List[QmtSector], Dict[str
         sector_stocks_map: Dict[str, List[str]] = {}
         skipped_sectors = []
 
+        # 按前缀分类计数器
+        prefix_counts = {prefix: 0 for prefix in ALLOWED_PREFIXES}
+
         # 遍历处理每个板块
         for sector_name in sector_list:
             try:
-                # 检查是否需要跳过此板块
-                if should_skip_sector(sector_name):
+                # 检查是否为允许的板块
+                if not should_include_sector(sector_name):
                     skipped_sectors.append(sector_name)
-                    logger.info(f"跳过板块[{sector_name}]，因为包含过滤关键词")
                     continue
+
+                # 更新前缀计数
+                for prefix in ALLOWED_PREFIXES:
+                    if sector_name.startswith(prefix):
+                        prefix_counts[prefix] += 1
+                        break
 
                 logger.info(f"开始处理板块[{sector_name}]...")
 
@@ -109,7 +116,6 @@ def sync_sector_and_stocks_to_db(db: Session) -> Tuple[List[QmtSector], Dict[str
                 db.add_all(sector_stocks)
                 sector_stocks_map[sector_name] = stock_codes
                 inserted_sectors.append(sector)
-                # 提交所有更改
                 db.commit()
 
                 logger.info(f"板块[{sector_name}]及其{len(stock_codes)}个成分股数据已插入")
@@ -120,7 +126,13 @@ def sync_sector_and_stocks_to_db(db: Session) -> Tuple[List[QmtSector], Dict[str
 
         end_time = datetime.datetime.now()
         logger.info(f"同步完成，结束时间: {end_time}, 总耗时: {end_time - start_time}")
-        logger.info(f"跳过的板块数量: {len(skipped_sectors)}")
+
+        # 输出每个前缀的板块数量统计
+        logger.info("各类板块数量统计:")
+        for prefix, count in prefix_counts.items():
+            if count > 0:
+                logger.info(f"{prefix}: {count}个板块")
+
         logger.info(f"成功同步{len(inserted_sectors)}个板块，包含成分股的板块数: {len([k for k, v in sector_stocks_map.items() if v])}")
 
         # 报告包含成分股最多的十个板块
