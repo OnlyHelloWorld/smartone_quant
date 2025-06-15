@@ -10,6 +10,9 @@ from app.cruds.qmt_stock_monthly_crud import (
     get_monthly_klines_by_stock_code_and_date_range
 )
 from app.core.config import settings
+from utils.quant_logger import LoggerFactory
+
+logger = LoggerFactory.get_logger(__name__)
 
 """
 本测试文件用于测试股票月K线数据的CRUD操作。
@@ -63,7 +66,7 @@ class TestQmtStockMonthlyCrud(unittest.TestCase):
         # 1. 测试批量创建
         created_klines = create_monthly_klines(session=self.session, kline_list=test_data)
         self.assertEqual(len(created_klines), 3, "应该成功创建3条月K线数据")
-        print(f"成功创建{len(created_klines)}条月K数据")
+        logger.info(f"成功创建{len(created_klines)}条月K数据")
 
         # 2. 测试按时间范围查询
         start_time = now - timedelta(days=60)  # 两个月前
@@ -75,7 +78,7 @@ class TestQmtStockMonthlyCrud(unittest.TestCase):
             end_time=end_time
         )
         self.assertEqual(len(queried_klines), 2, "应该查询到2条月K线数据")
-        print(f"查询到{len(queried_klines)}条符合时间范围的数据")
+        logger.info(f"查询到{len(queried_klines)}条符合时间范围的数据")
 
         # 3. 测试删除操作
         delete_monthly_klines_by_stock_code(session=self.session, stock_code=stock_code)
@@ -88,7 +91,7 @@ class TestQmtStockMonthlyCrud(unittest.TestCase):
             end_time=end_time
         )
         self.assertEqual(len(remaining_klines), 0, "删除后应该没有数据")
-        print("成功删除所有测试数据")
+        logger.info("成功删除所有测试数据")
 
 if __name__ == '__main__':
     unittest.main()

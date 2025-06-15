@@ -6,6 +6,9 @@ from sqlmodel import Session, SQLModel, create_engine
 from app.services.qmt_stock_daily_service import sync_stock_daily_klines_to_db
 from app.models.qmt_stock_daily import QmtStockDailyOri
 from app.core.config import settings
+from utils.quant_logger import LoggerFactory
+
+logger = LoggerFactory.get_logger(__name__)
 
 class TestQmtStockDailyService(unittest.TestCase):
     @classmethod
@@ -56,7 +59,7 @@ class TestQmtStockDailyService(unittest.TestCase):
             period='1d'
         )
 
-        print("日K数据同步服务测试完成")
+        logger.info("日K数据同步服务测试完成")
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,6 +4,9 @@ from sqlalchemy import text
 from app.models.qmt_sector import QmtSector
 from app.cruds.qmt_sector_crud import create_qmt_sector, update_qmt_sector, get_qmt_sector_by_name
 from app.core.config import settings
+from utils.quant_logger import LoggerFactory
+
+logger = LoggerFactory.get_logger(__name__)
 
 """
 本测试文件用于测试QmtSector板块相关的CRUD操作。
@@ -46,30 +49,30 @@ class TestQmtSectorCrud(unittest.TestCase):
         # 1. 创建板块
         sector = QmtSector(sector_name="科技板块")
         created_sector = create_qmt_sector(session=self.session, qmt_sector_create=sector)
-        print(f"创建的板块ID: {created_sector.id}, 名称: {created_sector.sector_name}")
+        logger.info(f"创建的板块ID: {created_sector.id}, 名称: {created_sector.sector_name}")
         self.assertIsNotNone(created_sector.id, "创建后应有ID")
         self.assertEqual(created_sector.sector_name, "科技板块")
 
         # 2. 通过名称查询板块
         found_sector = get_qmt_sector_by_name(session=self.session, name="科技板块")
-        print(f"查询到的板块ID: {found_sector.id}, 名称: {found_sector.sector_name}")
+        logger.info(f"查询到的板块ID: {found_sector.id}, 名称: {found_sector.sector_name}")
         self.assertIsNotNone(found_sector, "应能通过名称查到板块")
         self.assertEqual(found_sector.sector_name, "科技板块")
 
         # 3. 更新板块名称
         updated_sector = QmtSector(sector_name="新能源板块")
-        print(f"更新前的板块ID: {found_sector.id}, 旧名称: {found_sector.sector_name}")
+        logger.info(f"更新前的板块ID: {found_sector.id}, 旧名称: {found_sector.sector_name}")
         update_qmt_sector(session=self.session, db_qmt_sector=found_sector, qmt_sector_in=updated_sector)
 
         # 4. 通过新名称查询
         found_new = get_qmt_sector_by_name(session=self.session, name="新能源板块")
-        print(f"更新后的板块ID: {found_new.id}, 新名称: {found_new.sector_name}")
+        logger.info(f"更新后的板块ID: {found_new.id}, 新名称: {found_new.sector_name}")
         self.assertIsNotNone(found_new, "更新后应能查到新名称板块")
         self.assertEqual(found_new.sector_name, "新能源板块")
 
         # 5. 旧名称应查不到
         found_old = get_qmt_sector_by_name(session=self.session, name="科技板块")
-        print(f"查询旧名称板块: {found_old}")
+        logger.info(f"查询旧名称板块: {found_old}")
         self.assertIsNone(found_old, "旧名称应查不到")
 
 if __name__ == '__main__':

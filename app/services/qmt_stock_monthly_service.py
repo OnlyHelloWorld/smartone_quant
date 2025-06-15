@@ -7,8 +7,9 @@ from app.cruds.qmt_stock_monthly_crud import (
     create_monthly_klines,
     delete_monthly_klines_by_stock_code_and_date_range
 )
+from utils.quant_logger import LoggerFactory
 
-logger = logging.getLogger(__name__)
+logger = LoggerFactory.get_logger(__name__)
 
 def sync_stock_monthly_klines_to_db(
     db: Session,
@@ -101,4 +102,4 @@ if __name__ == "__main__":
             start_time=datetime(2020, 1, 1),
             end_time=datetime(2020, 12, 31)
         )
-        print(f"同步完成，共同步{result}条月K数据")
+        logger.info(f"同步完成，共同步{result}条月K数据")

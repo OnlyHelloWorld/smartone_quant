@@ -1,12 +1,13 @@
 from typing import List
-import logging
+import datetime
 from sqlmodel import Session
 
 from xtquant import xtdata
 from app.models.qmt_sector import QmtSector
 from app.cruds.qmt_sector_crud import delete_all_qmt_sectors
+from utils.quant_logger import LoggerFactory
 
-logger = logging.getLogger(__name__)
+logger = LoggerFactory.get_logger(__name__)
 
 
 def sync_sector_list_to_db(db: Session) -> List[QmtSector]:
@@ -23,8 +24,11 @@ def sync_sector_list_to_db(db: Session) -> List[QmtSector]:
         Exception: 当获取板块列表失败或数据库操作失败时抛出
     """
     try:
+        # 记录开始时间
+        start_time = datetime.datetime.now()
         # 同步前先删除旧数据
-        logger.info("开始同步QMT板块列表到数据库，先删除旧数据")
+        logger.info(f'开始同步QMT板块列表数据，当前时间:{start_time} ')
+        logger.info(f"开始同步QMT板块列表到数据库，先删除旧数据")
         deleted: int = delete_all_qmt_sectors(db)
         logger.info(f'已删除旧数据，删除数量: {deleted}')
 
@@ -45,6 +49,8 @@ def sync_sector_list_to_db(db: Session) -> List[QmtSector]:
             db.add_all(sectors_to_insert)
             db.commit()
             logger.info(f"成功批量插入{len(sectors_to_insert)}个板块到数据库")
+            end_time = datetime.datetime.now()
+            logger.info(f"同步QMT板块列表完成，当前时间：{end_time},耗时: {end_time - start_time}")
             return sectors_to_insert
 
         except Exception as e:
