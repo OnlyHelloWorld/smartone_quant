@@ -21,8 +21,8 @@ class QmtSector(SQLModel, table=True):
     板块列表模型，存储从 QMT 获取的板块数据。
     该模型对应数据库表 `qmt_sector`，用于存储板块名称及其创建和更新时间。
     """
+    __table_args__ = {"extend_existing": True}
     id: Optional[int]= Field(default=None, primary_key=True)
     sector_name: str = Field(max_length=255, nullable=False)
 
     __tablename__ = "qmt_sector"
-    __table_args__ = {"comment": "板块列表存储表"}

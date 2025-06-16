@@ -4,6 +4,7 @@ from sqlmodel import Field, SQLModel
 
 class QmtStockDailyOri(SQLModel, table=True):
     """日K线原始数据模型"""
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     stock_code: str = Field(max_length=20, nullable=False)
     time: datetime = Field(nullable=False)
@@ -15,4 +16,3 @@ class QmtStockDailyOri(SQLModel, table=True):
     amount: float = Field(nullable=False)
 
     __tablename__ = "qmt_stock_daily_ori"
-    __table_args__ = {"comment": "股票日K线数据表"}

@@ -18,9 +18,9 @@ class QmtSectorStock(SQLModel, table=True):
     板块成分股列表模型，存储从 QMT 获取的板块成分股数据。
     该模型对应数据库表 `qmt_sector_stock`，用于存储板块ID、股票代码及其创建和更新时间。
     """
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     sector_id: int = Field(nullable=False)
     stock_code: str = Field(max_length=20, nullable=False)
 
     __tablename__ = "qmt_sector_stock"
-    __table_args__ = {"comment": "板块成分股列表存储表"}
