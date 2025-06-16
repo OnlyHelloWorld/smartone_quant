@@ -31,10 +31,17 @@ def sync_stock_daily_klines_to_db(
         int: 同步的记录数量
     """
     try:
+
+
+        # 获取start_time end_time当天0点的时间戳
+        start_time = datetime.combine(start_time, datetime.min.time())
+        end_time = datetime.combine(end_time, datetime.min.time()) + timedelta(days=1) - timedelta(seconds=1)
         start_time_str = start_time.strftime('%Y%m%d')
         end_time_str = end_time.strftime('%Y%m%d')
+
         logger.info(f"开始同步股票{stock_code}的日K数据，时间范围：{start_time_str} - {end_time_str}")
         logger.info(f'开始下载股票{stock_code}的日K数据，时间范围：{start_time_str} - {end_time_str}')
+
         xtdata.download_history_data(
             stock_code=stock_code,
             period='1d',
