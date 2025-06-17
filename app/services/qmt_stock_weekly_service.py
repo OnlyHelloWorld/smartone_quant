@@ -1,104 +1,124 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import select
 from sqlmodel import Session
-
 from xtquant import xtdata
 from app.cruds.qmt_stock_weekly_crud import (
     create_weekly_klines,
     delete_weekly_klines_by_stock_code_and_date_range
 )
-from utils.quant_logger import LoggerFactory
+from sqlmodel import create_engine
+from app.core.config import settings
+from cruds.qmt_sector_stock_crud import get_qmt_sector_stocks_by_sector_name
+from models.qmt_stock_weekly import QmtStockWeeklyOri
+from utils.quant_logger import init_logger
+from utils.qmt_data_utils import parse_stock_data
 
-logger = LoggerFactory.get_logger(__name__)
+logger = init_logger()
 
 def sync_stock_weekly_klines_to_db(
     db: Session,
     stock_code: str,
-    start_time: datetime,
-    end_time: datetime
+    start_sync_time: datetime,
+    end_sync_time: datetime
 ) -> int:
     """
     从QMT获取指定股票的周K线数据并同步到数据库
-
-    Args:
-        db: 数据库会话
-        stock_code: 股票代码
-        start_time: 开始时间，格式：'2020-01-01'
-        end_time: 结束时间，格式：'2020-12-31'
-
-    Returns:
-        int: 同步的记录数量
     """
     try:
-        start_time_str = start_time.strftime('%Y%m%d')
-        end_time_str = end_time.strftime('%Y%m%d')
-        logger.info(f"开始同步股票{stock_code}的周K数据，时间范围：{start_time_str} - {end_time_str}")
-        # 获取周K数据
+        start_sync_time = datetime.combine(start_sync_time, datetime.min.time())
+        end_sync_time = datetime.combine(end_sync_time, datetime.min.time()) + timedelta(days=1) - timedelta(seconds=1)
+        logger.info(f"开始同步股票{stock_code}的周K数据，时间范围：{start_sync_time} - {end_sync_time}")
+        # 计算实际同步的时间范围
+        latest_data = db.exec(
+            select(QmtStockWeeklyOri.time)
+            .where(QmtStockWeeklyOri.stock_code == stock_code)
+            .order_by(QmtStockWeeklyOri.time.desc())
+        ).first()
+        if latest_data:
+            latest_time = latest_data.time
+            if latest_time >= end_sync_time:
+                logger.info(f"股票{stock_code}在数据库中已有最新周K数据，最新数据日期为{latest_time}，无需同步")
+                return 0
+            if latest_time >= start_sync_time:
+                start_sync_time = latest_time
+                logger.info(f"股票{stock_code}在数据库中已有周K数据，使用最新数据日期{latest_time}作为起始时间")
+        else:
+            logger.info(f"股票{stock_code}在数据库中没有周K数据，使用同步开始时间{start_sync_time}作为起始时间")
+        start_time_str = start_sync_time.strftime('%Y%m%d')
+        end_time_str = end_sync_time.strftime('%Y%m%d')
+        xtdata.download_history_data(
+            stock_code=stock_code,
+            period='1w',
+            start_time=start_time_str,
+            end_time=end_time_str,
+            incrementally=False
+        )
+        logger.info(f"下载股票{stock_code}的周K数据完成，开始获取数据")
         weekly_data = xtdata.get_market_data(
             field_list=["time", "open", "high", "low", "close", "volume", "amount"],
             stock_list=[stock_code],
-            period='1W',
+            period='1w',
             start_time=start_time_str,
             end_time=end_time_str,
             count=-1,
-            dividend_type=None,
-            fill_data=True
+            dividend_type='front',
+            fill_data=False
         )
-
         if not weekly_data:
             logger.warning(f"未获取到股票{stock_code}的周K数据")
             return 0
         else:
             logger.info(f"获取到股票{stock_code}的周K数据，共{len(weekly_data['time'])}条记录")
-
-        # 删除该日期段内的旧数据
-        delete_weekly_klines_by_stock_code_and_date_range(
+        deleted = delete_weekly_klines_by_stock_code_and_date_range(
             session=db,
             stock_code=stock_code,
-            start_time=start_time,
-            end_time=end_time
+            start_time=start_sync_time,
+            end_time=end_sync_time
         )
+        logger.info(f'删除股票{stock_code}在{start_time_str} - {end_time_str}日期段内的旧数据，共删除{deleted}条记录')
 
-        # 格式化数据
-        weekly_records = []
-        for i in range(len(weekly_data['time'])):
-            record = {
-                'stock_code': stock_code,
-                'time': datetime.fromtimestamp(weekly_data['time'][i]),
-                'open': weekly_data['open'][i],
-                'high': weekly_data['high'][i],
-                'low': weekly_data['low'][i],
-                'close': weekly_data['close'][i],
-                'volume': weekly_data['volume'][i],
-                'amount': weekly_data['amount'][i]
-            }
-            weekly_records.append(record)
+        stock_objs = parse_stock_data(weekly_data, model_cls=QmtStockWeeklyOri)
 
         # 批量插入数据库
-        if weekly_records:
-            create_weekly_klines(session=db, kline_list=weekly_records)
-            logger.info(f"同步周K数据完成 - {stock_code} - {len(weekly_records)}条记录")
-            return len(weekly_records)
-
-        return 0
-
+        db.add_all(stock_objs)
+        db.commit()
+        logger.info(f"成功同步股票{stock_code}的周K数据，共同步{len(stock_objs)}条记录")
+        return len(stock_objs)
     except Exception as e:
         logger.error(f"同步周K数据失败 - {stock_code}: {str(e)}")
         raise
 
 # 用于测试的 main 函数
 if __name__ == "__main__":
-    from sqlmodel import create_engine
-    from app.core.config import settings
-
+    # 记录开始时间
+    start_time = datetime.now()
+    logger.info(f"开始同步周K数据，当前时间：{start_time}")
     # 创建数据库引擎
     engine = create_engine(settings.SQLALCHEMY_MYSQL_DATABASE_URI, echo=True)
+    # 获取三年前的日期,yyyyMMdd格式
+    three_years_ago = (datetime.now() - timedelta(days=3 * 365))
+    logger.info(f'三年前的日期为：{three_years_ago}')
+    # 获取今天日期
+    today = datetime.now()
+    logger.info(f'今天的日期为：{today}')
 
     # 测试同步周K数据
     with Session(engine) as session:
-        result = sync_stock_weekly_klines_to_db(
-            db=session,
-            stock_code="000001.SZ",
-            start_time=datetime(2020, 1, 1),
-            end_time= datetime(2023, 10, 1)
+        sector_stocks = get_qmt_sector_stocks_by_sector_name(
+            session=session,
+            sector_name="沪深A股"
         )
-        logger.info(f"同步完成，共同步{result}条周K数据")
+        for sector_stock in sector_stocks:
+            logger.info(f"开始同步股票{sector_stock.stock_code}的周K数据")
+            result = sync_stock_weekly_klines_to_db(
+                db=session,
+                stock_code=sector_stock.stock_code,
+                start_sync_time=three_years_ago,
+                end_sync_time=today
+            )
+            logger.info(f"同步完成，共同步{result}条周K数据")
+
+    # 记录结束时间
+    end_time = datetime.now()
+    logger.info(f"结束同步周K数据，当前时间：{end_time}")
+    logger.info(f"总耗时：{end_time - start_time}")

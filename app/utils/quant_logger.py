@@ -4,14 +4,16 @@
 import logging
 import os
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 
-def init_logger(name="smartone_quant", log_dir=None):
+def init_logger(name="smartone_quant", log_dir=None, show_sql=False):
     """
     初始化一个日志记录器，将日志信息同时输出到文件和控制台。
 
     参数:
     name (str): 日志记录器的名称，默认为 "quant_data"。
     log_dir (str): 日志文件存储的目录，默认为 app/logs。
+    show_sql (bool): 是否显示SQLAlchemy SQL语句日志，默认为False。
 
     返回:
     logging.Logger: 配置好的日志记录器实例。
@@ -31,9 +33,8 @@ def init_logger(name="smartone_quant", log_dir=None):
 
     # 检查日志记录器是否已经有处理器，避免重复添加处理器
     if not logger.handlers:
-        # 创建一个文件处理器，将日志信息写入指定的日志文件，设置编码为utf-8以支持中文
-        fh = logging.FileHandler(log_path, encoding="utf-8")
-        # 设置文件处理器的日志级别为 INFO
+        # 创建一个RotatingFileHandler，单个日志文件最大10M，最多保留5个备份
+        fh = RotatingFileHandler(log_path, maxBytes=10*1024*1024, backupCount=10, encoding="utf-8")
         fh.setLevel(logging.INFO)
 
         # 创建一个流处理器，将日志信息输出到控制台
@@ -52,5 +53,15 @@ def init_logger(name="smartone_quant", log_dir=None):
         logger.addHandler(fh)
         # 将流处理器添加到日志记录器中
         logger.addHandler(ch)
+
+    # 控制SQLAlchemy SQL语句日志显示
+    sa_logger = logging.getLogger('sqlalchemy.engine')
+    if show_sql:
+        sa_logger.setLevel(logging.INFO)
+    else:
+        sa_logger.setLevel(logging.WARNING)
+
+    # 防止日志重复打印
+    logger.propagate = False
 
     return logger

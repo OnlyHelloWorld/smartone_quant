@@ -41,8 +41,8 @@ class TestQmtStockDailyService(unittest.TestCase):
         result = sync_stock_daily_klines_to_db(
             db=self.session,
             stock_code="000001.SZ",
-            start_time="2021-06-01",
-            end_time="2021-06-02"
+            start_sync_time="2021-06-01",
+            end_sync_time="2021-06-02"
         )
 
         # 验证数据同步结果

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="9329a4d3-bde5-4645-8e85-9f67bb3d3eba" name="aliyun">
+        <fileTransfer rootFolder="/root/smartone_quant" accessType="SFTP" host="8.130.141.23" port="22" sshConfigId="e64f1d86-eb2a-434e-a40e-fed7c88483bd" sshConfig="root@8.130.141.23:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

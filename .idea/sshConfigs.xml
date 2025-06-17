@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SshConfigs">
+    <configs>
+      <sshConfig authType="PASSWORD" connectionConfig="{&quot;serverAliveInterval&quot;:300}" id="e53f6297-6e54-48a3-b074-b121f4dd7db9" port="22" customName="aliyun" nameFormat="CUSTOM" useOpenSSHConfig="true">
+        <option name="customName" value="aliyun" />
+      </sshConfig>
+    </configs>
+  </component>
+</project>

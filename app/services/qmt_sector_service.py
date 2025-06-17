@@ -1,21 +1,22 @@
 from typing import List, Dict, Tuple
 import datetime
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from xtquant import xtdata
 from app.models.qmt_sector import QmtSector
 from app.models.qmt_sector_stock import QmtSectorStock
 from app.cruds.qmt_sector_crud import delete_all_qmt_sectors
 from app.cruds.qmt_sector_stock_crud import delete_all_qmt_sector_stocks
-from utils.quant_logger import LoggerFactory
+from utils.quant_logger import init_logger
 
-logger = LoggerFactory.get_logger(__name__)
+logger = init_logger()
 
 # 允许的板块前缀列表
 ALLOWED_PREFIXES = {
     "GN", "TGN", "THY", "1000SW", "500SW",
     "300", "300SW", "HKSW",
-    "SW1", "SW2", "SW3", "CSRC"
+    "SW1", "SW2", "SW3", "CSRC",
+    "沪深A股","沪深300"
 }
 
 def should_include_sector(sector_name: str) -> bool:
@@ -143,6 +144,73 @@ def sync_sector_and_stocks_to_db(db: Session) -> List[str]:
         raise
 
 
+# 同步指定板块及其成分股到数据库
+def sync_sector_and_stocks_to_db_by_name(db: Session, sector_name: str) -> Tuple[List[str], List[str]]:
+    """
+    同步指定板块及其成分股到数据库
+
+    Args:
+        db: 数据库会话
+        sector_name: 指定的板块名称
+
+    Returns:
+        Tuple[List[str], List[str]]: 成功同步的成分股列表和失败的成分股列表
+    """
+    try:
+        # 获取该板块的成分股
+        stock_codes: List[str] = xtdata.get_stock_list_in_sector(sector_name)
+        if not stock_codes:
+            logger.warning(f"板块[{sector_name}]没有成分股")
+            return [], []
+
+        logger.info(f"板块[{sector_name}]获取到{len(stock_codes)}个成分股")
+
+        # 如果数据库中已经存在该板块，先删除该板块以及对应成分股记录
+        existing_sector = db.exec(
+            select(QmtSector).where(QmtSector.sector_name == sector_name)
+        ).first()
+        if existing_sector:
+            logger.info(f"板块[{sector_name}]已存在，删除旧数据")
+            # 删除该板块
+            db.exec(
+                delete(QmtSector).where(QmtSector.id == existing_sector.id)
+            )
+            # 删除该板块的成分股记录
+            db.exec(
+                delete(QmtSectorStock).where(QmtSectorStock.sector_id == existing_sector.id)
+            )
+            db.commit()
+            # 删除板块记录
+            db.delete(existing_sector)
+            db.commit()
+
+        # 创建新的板块记录
+        sector = QmtSector(sector_name=sector_name)
+        db.add(sector)
+        db.flush()  # 确保板块ID被生成
+        current_sector_id = sector.id  # 获取新创建的板块ID
+        logger.info(f"创建板块[{sector_name}]，ID为{current_sector_id}")
+
+        # 批量创建该板块的成分股记录
+        sector_stocks = [
+            QmtSectorStock(
+                sector_id=current_sector_id,
+                stock_code=code
+            ) for code in stock_codes
+        ]
+
+        db.add_all(sector_stocks)
+        db.commit()
+
+        logger.info(f"板块[{sector_name}]及其{len(stock_codes)}个成分股数据已插入")
+        return stock_codes, []
+
+    except Exception as e:
+        db.rollback()
+        error_msg = str(e)
+        logger.error(f"处理板块[{sector_name}]时发生错误: {error_msg}")
+        return [], [error_msg]
+
 # 增加 main 函数便于单独调试
 if __name__ == "__main__":
     from sqlmodel import create_engine, Session
@@ -153,4 +221,9 @@ if __name__ == "__main__":
 
     # 同步板块列表和成分股到数据库
     with Session(engine) as session:
-        sync_sector_and_stocks_to_db(session)
+        # sync_sector_and_stocks_to_db(session)
+        # 同步指定板块及其成分股到数据库
+        sector_name = "沪深A股"
+        stock_codes, errors = sync_sector_and_stocks_to_db_by_name(session, sector_name)
+        if stock_codes:
+            logger.info(f"成功同步板块[{sector_name}]的成分股: {stock_codes}")

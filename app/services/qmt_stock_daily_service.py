@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+
+from sqlalchemy import select
 from sqlmodel import Session
 
 from xtquant import xtdata
@@ -6,17 +8,20 @@ from app.cruds.qmt_stock_daily_crud import (
     create_daily_klines,
     delete_daily_klines_by_stock_code_and_date_range
 )
+from sqlmodel import create_engine
+from app.core.config import settings
 from models.qmt_stock_daily import QmtStockDailyOri
 from utils.quant_logger import init_logger
 from utils.qmt_data_utils import parse_stock_data
+from cruds.qmt_sector_stock_crud import get_qmt_sector_stocks_by_sector_name
 
 logger = init_logger()
 
 def sync_stock_daily_klines_to_db(
     db: Session,
     stock_code: str,
-    start_time: datetime,
-    end_time: datetime
+    start_sync_time: datetime,
+    end_sync_time: datetime
 ) -> int:
     """
     从QMT获取指定股票的日K线数据并同步到数据库
@@ -24,8 +29,8 @@ def sync_stock_daily_klines_to_db(
     Args:
         db: 数据库会话
         stock_code: 股票代码
-        start_time: 开始时间，格式：'2020-01-01'
-        end_time: 结束时间，格式：'2020-12-31'
+        start_sync_time: 开始时间，格式：'2020-01-01'
+        end_sync_time: 结束时间，格式：'2020-12-31'
 
     Returns:
         int: 同步的记录数量
@@ -34,13 +39,37 @@ def sync_stock_daily_klines_to_db(
 
 
         # 获取start_time end_time当天0点的时间戳
-        start_time = datetime.combine(start_time, datetime.min.time())
-        end_time = datetime.combine(end_time, datetime.min.time()) + timedelta(days=1) - timedelta(seconds=1)
-        start_time_str = start_time.strftime('%Y%m%d')
-        end_time_str = end_time.strftime('%Y%m%d')
+        start_sync_time = datetime.combine(start_sync_time, datetime.min.time())
+        end_sync_time = datetime.combine(end_sync_time, datetime.min.time()) + timedelta(days=1) - timedelta(seconds=1)
 
-        logger.info(f"开始同步股票{stock_code}的日K数据，时间范围：{start_time_str} - {end_time_str}")
-        logger.info(f'开始下载股票{stock_code}的日K数据，时间范围：{start_time_str} - {end_time_str}')
+
+        logger.info(f"开始同步股票{stock_code}的日K数据，时间范围：{start_sync_time} - {end_sync_time}")
+        logger.info(f'开始下载股票{stock_code}的日K数据，时间范围：{start_sync_time} - {end_sync_time}')
+
+        # 计算实际同步的时间范围，如果数据库中该股票已有数据，
+        # 则从获取最新的数据日期，如果最新数据日期大于同步开始日期，则从最新数据日期开始同步
+        # 如果最新数据日期小于同步开始日期，则从同步开始日期开始同步
+        latest_data = db.exec(
+            select(QmtStockDailyOri.time)
+            .where(QmtStockDailyOri.stock_code == stock_code)
+            .order_by(QmtStockDailyOri.time.desc())
+        ).first()
+        if latest_data:
+            latest_time = latest_data.time
+            # 如果最新数据日期大于等于同步结束时间，则不需要同步
+            if latest_time >= end_sync_time:
+                logger.info(f"股票{stock_code}在数据库中已有最新数据，最新数据日期为{latest_time}，无需同步")
+                return 0
+
+            # 如果最新数据日期大于等于同步开始时间，则从最新数据日期开始同步
+            if latest_time >= start_sync_time:
+                start_sync_time = latest_time
+                logger.info(f"股票{stock_code}在数据库中已有数据，使用最新数据日期{latest_time}作为起始时间")
+        else:
+            logger.info(f"股票{stock_code}在数据库中没有日K数据，使用同步开始时间{start_sync_time}作为起始时间")
+
+        start_time_str = start_sync_time.strftime('%Y%m%d')
+        end_time_str = end_sync_time.strftime('%Y%m%d')
 
         xtdata.download_history_data(
             stock_code=stock_code,
@@ -72,8 +101,8 @@ def sync_stock_daily_klines_to_db(
         deleted = delete_daily_klines_by_stock_code_and_date_range(
             session=db,
             stock_code=stock_code,
-            start_time=start_time,
-            end_time=end_time
+            start_time=start_sync_time,
+            end_time=end_sync_time
         )
 
         logger.info(f'删除股票{stock_code}在{start_time_str} - {end_time_str}日期段内的旧数据，共删除{deleted}条记录')
@@ -93,9 +122,10 @@ def sync_stock_daily_klines_to_db(
 
 # 用于测试的 main 函数
 if __name__ == "__main__":
-    from sqlmodel import create_engine
-    from app.core.config import settings
 
+    # 记录开始时间
+    start_time = datetime.now()
+    logger.info(f"开始同步日K数据，当前时间：{start_time}")
     # 创建数据库引擎
     engine = create_engine(settings.SQLALCHEMY_MYSQL_DATABASE_URI, echo=True)
     # 获取三年前的日期,yyyyMMdd格式
@@ -107,11 +137,21 @@ if __name__ == "__main__":
 
     # 测试同步日K数据
     with Session(engine) as session:
-        result = sync_stock_daily_klines_to_db(
-            db=session,
-            stock_code="000001.SZ",
-            start_time=three_years_ago,
-            end_time=today
+        sector_stocks = get_qmt_sector_stocks_by_sector_name(
+            session=session,
+            sector_name="沪深A股"
         )
-        logger.info(f"同步完成，共同步{result}条日K数据")
+        for sector_stock in sector_stocks:
+            logger.info(f"开始同步股票{sector_stock.stock_code}的日K数据")
+            result = sync_stock_daily_klines_to_db(
+                db=session,
+                stock_code=sector_stock.stock_code,
+                start_sync_time=three_years_ago,
+                end_sync_time=today
+            )
+            logger.info(f"同步完成，共同步{result}条日K数据")
 
+    # 记录结束时间
+    end_time = datetime.now()
+    logger.info(f"结束同步日K数据，当前时间：{end_time}")
+    logger.info(f"总耗时：{end_time - start_time}")
