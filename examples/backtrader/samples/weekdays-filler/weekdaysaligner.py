@@ -27,7 +27,6 @@ import datetime
 import backtrader as bt
 import backtrader.feeds as btfeeds
 import backtrader.indicators as btind
-import backtrader.utils.flushfile
 
 # from wkdaysfiller import WeekDaysFiller
 from weekdaysfiller import WeekDaysFiller

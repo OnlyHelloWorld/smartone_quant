@@ -22,12 +22,10 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import argparse
-import sys
 
 import backtrader as bt
 import backtrader.feeds as btfeeds
 import backtrader.indicators as btind
-import backtrader.utils.flushfile
 
 
 class TestInd(bt.Indicator):

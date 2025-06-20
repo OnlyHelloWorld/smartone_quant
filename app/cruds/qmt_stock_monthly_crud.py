@@ -1,8 +1,10 @@
-from typing import List, Optional
 from datetime import datetime
-from sqlmodel import Session, select
+from typing import List
+
+from sqlmodel import Session, select, delete
 
 from app.models.qmt_stock_monthly import QmtStockMonthlyOri
+
 
 def create_monthly_klines(*, session: Session, kline_list: List[dict]) -> List[QmtStockMonthlyOri]:
     """批量创建月K线数据"""
@@ -24,15 +26,15 @@ def delete_monthly_klines_by_stock_code_and_date_range(
     start_time: datetime,
     end_time: datetime
 ) -> int:
-    """删除指定股票在时间范围内的月K线数据"""
-    statement = select(QmtStockMonthlyOri).where(
+    """删除指定股票在时间范围内的月K线数据（批量删除，效率高）"""
+    statement = delete(QmtStockMonthlyOri).where(
         QmtStockMonthlyOri.stock_code == stock_code,
         QmtStockMonthlyOri.time >= start_time,
         QmtStockMonthlyOri.time <= end_time
     )
-    deleted_count = session.exec(statement).delete()
+    result = session.exec(statement)
     session.commit()
-    return deleted_count
+    return result.rowcount
 
 def get_monthly_klines_by_stock_code_and_date_range(
     *,

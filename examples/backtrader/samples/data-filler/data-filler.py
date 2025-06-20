@@ -28,7 +28,6 @@ import math
 # The above could be sent to an independent module
 import backtrader as bt
 import backtrader.feeds as btfeeds
-import backtrader.utils.flushfile
 import backtrader.filters as btfilters
 
 from relativevolume import RelativeVolume

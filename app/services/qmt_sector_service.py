@@ -1,12 +1,13 @@
-from typing import List, Dict, Tuple
 import datetime
-from sqlmodel import Session, select
+from typing import List, Tuple
 
+from sqlmodel import Session, select
 from xtquant import xtdata
-from app.models.qmt_sector import QmtSector
-from app.models.qmt_sector_stock import QmtSectorStock
+
 from app.cruds.qmt_sector_crud import delete_all_qmt_sectors
 from app.cruds.qmt_sector_stock_crud import delete_all_qmt_sector_stocks
+from app.models.qmt_sector import QmtSector
+from app.models.qmt_sector_stock import QmtSectorStock
 from utils.quant_logger import init_logger
 
 logger = init_logger()

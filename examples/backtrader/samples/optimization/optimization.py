@@ -25,11 +25,10 @@ import argparse
 import datetime
 import time
 
-from backtrader.utils.py3 import range
-
 import backtrader as bt
-import backtrader.indicators as btind
 import backtrader.feeds as btfeeds
+import backtrader.indicators as btind
+from backtrader.utils.py3 import range
 
 
 class OptimizeStrategy(bt.Strategy):

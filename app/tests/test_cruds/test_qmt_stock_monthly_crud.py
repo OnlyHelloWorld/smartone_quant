@@ -1,15 +1,16 @@
 import unittest
 from datetime import datetime, timedelta
-from sqlmodel import Session, SQLModel, create_engine
-from sqlalchemy import text
 
-from app.models.qmt_stock_monthly import QmtStockMonthlyOri
+from sqlalchemy import text
+from sqlmodel import Session, SQLModel, create_engine
+
+from app.core.config import settings
 from app.cruds.qmt_stock_monthly_crud import (
     create_monthly_klines,
     delete_monthly_klines_by_stock_code,
     get_monthly_klines_by_stock_code_and_date_range
 )
-from app.core.config import settings
+from app.models.qmt_stock_monthly import QmtStockMonthlyOri
 from utils.quant_logger import LoggerFactory
 
 logger = LoggerFactory.get_logger(__name__)

@@ -1,10 +1,11 @@
 from typing import List, Dict
-from sqlmodel import Session, select
 
+from sqlmodel import Session, select
 from xtquant import xtdata
+
+from app.cruds.qmt_sector_stock_crud import delete_qmt_sector_stocks_by_sector_id
 from app.models.qmt_sector import QmtSector
 from app.models.qmt_sector_stock import QmtSectorStock
-from app.cruds.qmt_sector_stock_crud import delete_qmt_sector_stocks_by_sector_id
 from utils.quant_logger import LoggerFactory
 
 logger = LoggerFactory.get_logger(__name__)

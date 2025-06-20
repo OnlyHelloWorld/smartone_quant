@@ -1,10 +1,12 @@
 import unittest
-from sqlmodel import Session, SQLModel, create_engine
+from unittest.mock import patch
+
 from sqlalchemy import text
-from unittest.mock import patch, MagicMock
+from sqlmodel import Session, SQLModel, create_engine
+
+from app.core.config import settings
 from app.models.qmt_sector import QmtSector
 from app.services.qmt_sector_service import sync_sector_list_to_db
-from app.core.config import settings
 
 """
 本测试文件用于测试QmtSectorService服务层的板块同步功能。

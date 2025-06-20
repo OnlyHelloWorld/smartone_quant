@@ -2,8 +2,6 @@ from sqlmodel import Session, create_engine, select
 
 from app import crud
 from app.core.config import settings
-from app.models.qmt_sector import QmtSector
-from app.models.qmt_sector_stock import QmtSectorStock
 from app.models.Smart_User import User, UserCreate
 
 engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))

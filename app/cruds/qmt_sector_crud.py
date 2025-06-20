@@ -1,6 +1,6 @@
-from sqlalchemy import text
 from typing import Any
 
+from sqlalchemy import text
 from sqlmodel import Session, select
 
 from app.models.qmt_sector import QmtSector

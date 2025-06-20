@@ -1,6 +1,8 @@
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
 from sqlmodel import Field, SQLModel
+
 
 class QmtStockWeeklyOri(SQLModel, table=True):
     """周K线原始数据模型"""

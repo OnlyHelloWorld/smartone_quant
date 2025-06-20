@@ -21,15 +21,15 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-# Reference
-# https://estrategiastrading.com/oro-bolsa-estadistica-con-python/
-
 import argparse
 import datetime
 
+import backtrader as bt
 import scipy.stats
 
-import backtrader as bt
+
+# Reference
+# https://estrategiastrading.com/oro-bolsa-estadistica-con-python/
 
 
 class PearsonR(bt.ind.PeriodN):

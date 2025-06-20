@@ -1,9 +1,10 @@
 import unittest
 from unittest.mock import patch
+
 from sqlmodel import Session, SQLModel, create_engine
 
-from app.services.qmt_stock_daily_service import sync_stock_daily_klines_to_db
 from app.core.config import settings
+from app.services.qmt_stock_daily_service import sync_stock_daily_klines_to_db
 from utils.quant_logger import LoggerFactory
 
 logger = LoggerFactory.get_logger(__name__)

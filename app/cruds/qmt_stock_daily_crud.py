@@ -1,8 +1,10 @@
-from typing import List, Optional
 from datetime import datetime
+from typing import List
+
 from sqlmodel import Session, select, delete
 
 from app.models.qmt_stock_daily import QmtStockDailyOri
+
 
 def create_daily_klines(*, session: Session, kline_list: List[dict]) -> List[QmtStockDailyOri]:
     """批量创建日K线数据"""

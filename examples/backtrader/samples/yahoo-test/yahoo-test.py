@@ -25,9 +25,8 @@ import argparse
 import datetime
 
 import backtrader as bt
-import backtrader.indicators as btind
 import backtrader.feeds as btfeeds
-import backtrader.filters as btfilters
+import backtrader.indicators as btind
 
 
 def runstrat():

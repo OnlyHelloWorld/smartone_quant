@@ -10,7 +10,6 @@ import math
 import operator
 import sys
 
-
 if sys.version_info.major == 2:
     map = itertools.imap
 

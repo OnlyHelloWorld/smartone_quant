@@ -25,7 +25,6 @@ import argparse
 
 import backtrader as bt
 import backtrader.feeds as btfeeds
-import backtrader.utils.flushfile
 
 
 class St(bt.Strategy):

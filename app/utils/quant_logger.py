@@ -59,7 +59,7 @@ def init_logger(name="smartone_quant", log_dir=None, show_sql=False):
     if show_sql:
         sa_logger.setLevel(logging.INFO)
     else:
-        sa_logger.setLevel(logging.WARNING)
+        sa_logger.setLevel(logging.DEBUG)
 
     # 防止日志重复打印
     logger.propagate = False

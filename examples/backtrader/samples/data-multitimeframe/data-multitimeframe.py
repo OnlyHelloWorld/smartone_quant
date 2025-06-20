@@ -26,9 +26,8 @@ import argparse
 import backtrader as bt
 import backtrader.feeds as btfeeds
 import backtrader.indicators as btind
-from backtrader import ResamplerDaily, ResamplerWeekly, ResamplerMonthly
 from backtrader import ReplayerDaily, ReplayerWeekly, ReplayerMonthly
-from backtrader.utils import flushfile
+from backtrader import ResamplerDaily, ResamplerWeekly, ResamplerMonthly
 
 
 class SMAStrategy(bt.Strategy):

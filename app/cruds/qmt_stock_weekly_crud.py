@@ -1,8 +1,10 @@
-from typing import List, Optional
 from datetime import datetime
+from typing import List
+
 from sqlmodel import Session, select
 
 from app.models.qmt_stock_weekly import QmtStockWeeklyOri
+
 
 def create_weekly_klines(*, session: Session, kline_list: List[dict]) -> List[QmtStockWeeklyOri]:
     """批量创建周K线数据"""

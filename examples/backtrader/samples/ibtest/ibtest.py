@@ -26,7 +26,6 @@ import datetime
 
 # The above could be sent to an independent module
 import backtrader as bt
-from backtrader.utils import flushfile  # win32 quick stdout flushing
 
 
 class TestStrategy(bt.Strategy):

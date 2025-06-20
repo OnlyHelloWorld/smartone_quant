@@ -1,9 +1,11 @@
 import unittest
-from sqlmodel import Session, SQLModel, create_engine
+
 from sqlalchemy import text
-from app.models.qmt_sector import QmtSector
-from app.cruds.qmt_sector_crud import create_qmt_sector, update_qmt_sector, get_qmt_sector_by_name
+from sqlmodel import Session, SQLModel, create_engine
+
 from app.core.config import settings
+from app.cruds.qmt_sector_crud import create_qmt_sector, update_qmt_sector, get_qmt_sector_by_name
+from app.models.qmt_sector import QmtSector
 from utils.quant_logger import LoggerFactory
 
 logger = LoggerFactory.get_logger(__name__)

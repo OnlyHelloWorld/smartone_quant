@@ -8,6 +8,7 @@ import sys  # 用于获取脚本名称（在 argv[0] 中）
 # 导入 backtrader 平台
 import backtrader as bt
 
+
 # 创建一个策略
 class TestStrategy(bt.Strategy):
     params = (

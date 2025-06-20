@@ -1,17 +1,18 @@
 from datetime import datetime, timedelta
+
 from sqlalchemy import select
 from sqlmodel import Session
+from sqlmodel import create_engine
 from xtquant import xtdata
+
+from app.core.config import settings
 from app.cruds.qmt_stock_weekly_crud import (
-    create_weekly_klines,
     delete_weekly_klines_by_stock_code_and_date_range
 )
-from sqlmodel import create_engine
-from app.core.config import settings
 from cruds.qmt_sector_stock_crud import get_qmt_sector_stocks_by_sector_name
 from models.qmt_stock_weekly import QmtStockWeeklyOri
-from utils.quant_logger import init_logger
 from utils.qmt_data_utils import parse_stock_data
+from utils.quant_logger import init_logger
 
 logger = init_logger()
 
@@ -108,8 +109,11 @@ if __name__ == "__main__":
             session=session,
             sector_name="沪深A股"
         )
+        current_count = 0
+        total_count = len(sector_stocks)
         for sector_stock in sector_stocks:
-            logger.info(f"开始同步股票{sector_stock.stock_code}的周K数据")
+            current_count += 1
+            logger.info(f"开始同步股票{sector_stock.stock_code}的周K数据, 当前进度：{current_count}/{total_count}")
             result = sync_stock_weekly_klines_to_db(
                 db=session,
                 stock_code=sector_stock.stock_code,

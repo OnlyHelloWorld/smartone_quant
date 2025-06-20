@@ -19,4 +19,5 @@ dependencies = [
     "pymysql>=1.1.1",
     "notebook>=7.4.3",
     "ipykernel>=6.29.5",
+    "akshare>=1.17.5",
 ]

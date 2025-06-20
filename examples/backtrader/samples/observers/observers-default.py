@@ -22,7 +22,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import backtrader as bt
-import backtrader.feeds as btfeeds
 
 if __name__ == '__main__':
     cerebro = bt.Cerebro(stdstats=True)

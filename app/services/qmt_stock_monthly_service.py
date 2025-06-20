@@ -1,16 +1,18 @@
 from datetime import datetime, timedelta
+
 from sqlalchemy import select
 from sqlmodel import Session
+from sqlmodel import create_engine
 from xtquant import xtdata
+
+from app.core.config import settings
 from app.cruds.qmt_stock_monthly_crud import (
-    create_monthly_klines,
     delete_monthly_klines_by_stock_code_and_date_range
 )
-from sqlmodel import create_engine
-from app.core.config import settings
 from cruds.qmt_sector_stock_crud import get_qmt_sector_stocks_by_sector_name
 from models.qmt_stock_monthly import QmtStockMonthlyOri
 from utils.quant_logger import init_logger
+from utils.qmt_data_utils import parse_stock_data
 
 logger = init_logger()
 
@@ -56,7 +58,7 @@ def sync_stock_monthly_klines_to_db(
         monthly_data = xtdata.get_market_data(
             field_list=["time", "open", "high", "low", "close", "volume", "amount"],
             stock_list=[stock_code],
-            period='1m',
+            period='1mon',
             start_time=start_time_str,
             end_time=end_time_str,
             count=-1,
@@ -76,12 +78,12 @@ def sync_stock_monthly_klines_to_db(
         )
         logger.info(f"删除旧的月K数据{deleted}条")
 
-        # 格式化数据
-        stock_objs = parse_stock_data(daily_data, model_cls=QmtStockMonthlyOri)
+        stock_objs = parse_stock_data(monthly_data, model_cls=QmtStockMonthlyOri)
         if not stock_objs:
             logger.warning(f"解析股票{stock_code}的月K数据失败")
             return 0
-        # 批量插入数据库
+        else:
+            logger.info(f"解析股票{stock_code}的月K数据成功，共解析{len(stock_objs)}条记录")
         db.add_all(stock_objs)
         db.commit()
         logger.info(f"成功同步股票{stock_code}的月K数据，共同步{len(stock_objs)}条记录")
@@ -112,8 +114,14 @@ if __name__ == "__main__":
             session=session,
             sector_name="沪深A股"
         )
+        current_count = 0
+        total_count = len(sector_stocks)
+        # 先使用000001.SZ作为测试股票
+        # sector_stocks = [stock for stock in sector_stocks if stock.stock_code == "000001.SZ"]
+
         for sector_stock in sector_stocks:
-            logger.info(f"开始同步股票{sector_stock.stock_code}的月K数据")
+            current_count += 1
+            logger.info(f"开始同步股票{sector_stock.stock_code}的月K数据, 当前进度：{current_count}/{total_count}")
             result = sync_stock_monthly_klines_to_db(
                 db=session,
                 stock_code=sector_stock.stock_code,

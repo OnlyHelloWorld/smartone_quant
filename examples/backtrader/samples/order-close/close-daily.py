@@ -18,8 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,)
-#                        unicode_literals)
+from __future__ import (absolute_import, division, print_function, )
 
 import argparse
 import datetime
@@ -27,8 +26,10 @@ import random
 
 import backtrader as bt
 import backtrader.feeds as btfeeds
-
 from backtrader.utils.py3 import with_metaclass
+
+
+#                        unicode_literals)
 
 
 class St(bt.Strategy):
