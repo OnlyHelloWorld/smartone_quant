@@ -18,4 +18,3 @@ class QmtStockWeeklyOri(SQLModel, table=True):
     amount: float = Field(nullable=False)
 
     __tablename__ = "qmt_stock_weekly_ori"
-    __table_args__ = {"comment": "股票周K线数据表"}

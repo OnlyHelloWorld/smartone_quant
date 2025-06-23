@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from sqlmodel import Session, select
+from sqlmodel import Session, select, delete
 
 from app.models.qmt_stock_weekly import QmtStockWeeklyOri
 
@@ -26,15 +26,15 @@ def delete_weekly_klines_by_stock_code_and_date_range(
     start_time: datetime,
     end_time: datetime
 ) -> int:
-    """删除指定股票在时间范围内的周K线数据"""
-    statement = select(QmtStockWeeklyOri).where(
+    """删除指定股票在时间范围内的周K线数据（批量删除，效率高）"""
+    statement = delete(QmtStockWeeklyOri).where(
         QmtStockWeeklyOri.stock_code == stock_code,
         QmtStockWeeklyOri.time >= start_time,
         QmtStockWeeklyOri.time <= end_time
     )
-    deleted_count = session.exec(statement).delete()
+    result = session.exec(statement)
     session.commit()
-    return deleted_count
+    return result.rowcount
 
 
 def get_weekly_klines_by_stock_code_and_date_range(

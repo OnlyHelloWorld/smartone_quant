@@ -11,6 +11,7 @@ from app.cruds.qmt_stock_daily_crud import (
 )
 from cruds.qmt_sector_stock_crud import get_qmt_sector_stocks_by_sector_name
 from models.qmt_stock_daily import QmtStockDailyOri
+from utils.db_utils import insert_ignore, insert_on_duplicate_update
 from utils.qmt_data_utils import parse_stock_data
 from utils.quant_logger import init_logger
 
@@ -57,7 +58,7 @@ def sync_stock_daily_klines_to_db(
             latest_time = latest_data.time
             # 如果最新数据日期大于等于同步结束时间，则不需要同步
             if latest_time >= end_sync_time:
-                logger.info(f"股票{stock_code}在数据库中已有最新数据，最新数据日期为{latest_time}，无需同步")
+                logger.info(f"股票{stock_code}在数据库中���有最新数据，最新数据日期为{latest_time}，无需同步")
                 return 0
 
             # 如果最新数据日期大于等于同步开始时间，则从最新数据日期开始同步
@@ -109,10 +110,13 @@ def sync_stock_daily_klines_to_db(
         # 格式化数据
         stock_objs = parse_stock_data(daily_data, model_cls=QmtStockDailyOri)
 
-        # 批量插入数据库
-        db.add_all(stock_objs)
-        db.commit()
-        logger.info(f"成功同步股票{stock_code}的日K数据，共同步{len(stock_objs)}条记录")
+        # 批量插入数据库，遇到主键(stock_code+time)冲突时自动跳过
+        try:
+            inserted = insert_on_duplicate_update(db, QmtStockDailyOri, stock_objs)
+            logger.info(f"成功同步股票{stock_code}的日K数据，共尝试插入{inserted}条记录（唯一索引冲突时自动跳过）")
+        except Exception as e:
+            logger.error(f"插入日K数据失败: {e}")
+            raise
         return len(stock_objs)
 
     except Exception as e:
@@ -127,7 +131,7 @@ if __name__ == "__main__":
     logger.info(f"开始同步日K数据，当前时间：{start_time}")
     # 创建数据库引擎
     engine = create_engine(settings.SQLALCHEMY_MYSQL_DATABASE_URI, echo=True)
-    # 获取三年前的日期,yyyyMMdd格式
+    # 取三年前的日期,yyyyMMdd格式
     three_years_ago = (datetime.now() - timedelta(days=3 * 365))
     logger.info(f'三年前的日期为：{three_years_ago}')
     # 获取今天日期

@@ -1,5 +1,6 @@
 from models.qmt_stock_daily import QmtStockDailyOri
 from utils.quant_logger import init_logger
+import pandas as pd
 
 logger = init_logger()
 
@@ -42,3 +43,16 @@ def parse_stock_data(stock_data: dict, model_cls = QmtStockDailyOri) -> list:
             stock_list.append(stock_obj)
 
     return stock_list
+
+def clean_kline_data(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    清洗K线数据：
+    1. 验证 high >= max(open, close, low)，low <= min(open, close, high)，不符合的记录仅打印日志警告
+    2. 其他清洗逻辑可扩展
+    """
+    for idx, row in df.iterrows():
+        max_val = max(row['open'], row['close'], row['low'])
+        min_val = min(row['open'], row['close'], row['high'])
+        if row['high'] < max_val or row['low'] > min_val:
+            logging.warning(f"数据异常: stock_code={row.get('stock_code', '')}, time={row.get('time', '')}, open={row['open']}, high={row['high']}, low={row['low']}, close={row['close']}")
+    return df
