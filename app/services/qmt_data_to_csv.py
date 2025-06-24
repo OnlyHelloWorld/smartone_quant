@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 from app.models.qmt_stock_daily import QmtStockDailyOri
 from app.models.qmt_stock_weekly import QmtStockWeeklyOri
 from app.models.qmt_stock_monthly import QmtStockMonthlyOri
+from cruds.qmt_sector_stock_crud import get_qmt_sector_stocks_by_sector_name
 from utils.qmt_data_utils import clean_kline_data
 from utils.quant_logger import init_logger
 from app.core.config import settings
@@ -87,20 +88,21 @@ if __name__ == "__main__":
         with Session(engine) as session:
             sector_stocks = get_qmt_sector_stocks_by_sector_name(
                 session=session,
-                sector_name="沪深A股"
+                sector_name="沪深300"
             )
             current_count = 0
             total_count = len(sector_stocks)
             for sector_stock in sector_stocks:
                 current_count += 1
-                logger.info(f"开始同步股票{sector_stock.stock_code}的日K数据, 当前进度：{current_count}/{total_count}")
-                result = sync_stock_daily_klines_to_db(
-                    db=session,
+                logger.info(f"开始同步{sector_stock.stock_code}的日K数据到SVC, 当前进度：{current_count}/{total_count}")
+                result = export_kline_to_csv(
+                    session=session,
                     stock_code=sector_stock.stock_code,
-                    start_sync_time=three_years_ago,
-                    end_sync_time=today
+                    start_time=three_years_ago,
+                    end_time=today,
+                    kline_type='daily'
                 )
-                logger.info(f"同步完成，共同步{result}条日K数据")
+                logger.info(f"同步SVC完成，共同步{result}条日K数据")
 
         # 记录结束时间
         end_time = datetime.now()

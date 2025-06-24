@@ -20,4 +20,5 @@ dependencies = [
     "notebook>=7.4.3",
     "ipykernel>=6.29.5",
     "akshare>=1.17.5",
+    "pandas-stubs==2.2.3.250527",
 ]
