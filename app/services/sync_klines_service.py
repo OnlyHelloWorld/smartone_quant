@@ -3,6 +3,8 @@ from sqlmodel import Session, create_engine
 
 from app.core.config import settings
 from cruds.qmt_sector_stock_crud import get_qmt_sector_stocks_by_sector_name
+from models.qmt_stock_daily import QmtStockDailyOri
+from models.qmt_stock_weekly import QmtStockWeeklyOri
 from models.qmt_stock_monthly import QmtStockMonthlyOri
 from utils.qmt_data_utils import (
     batch_download_stocks_data,
@@ -13,17 +15,50 @@ from utils.quant_logger import init_logger
 
 logger = init_logger()
 
+# 周期配置映射
+PERIOD_CONFIG = {
+    'daily': {
+        'period': '1d',
+        'period_name': '日K',
+        'model_cls': QmtStockDailyOri
+    },
+    'weekly': {
+        'period': '1w',
+        'period_name': '周K',
+        'model_cls': QmtStockWeeklyOri
+    },
+    'monthly': {
+        'period': '1mon',
+        'period_name': '月K',
+        'model_cls': QmtStockMonthlyOri
+    }
+}
 
-def main(stock_codes: list[str] = None, begin_time_str: str = None, end_time_str: str = None):
-    """月K数据同步主函数
+
+def sync_stock_klines(
+        period_type: str,
+        stock_codes: list[str] = None,
+        begin_time_str: str = None,
+        end_time_str: str = None,
+        max_workers: int = 4
+):
+    """K线数据同步主函数
 
     Args:
+        period_type (str): 周期类型，可选值: 'daily', 'weekly', 'monthly'
         stock_codes (list[str], optional): 股票代码列表. 如果为None, 则同步所有沪深A股
         begin_time_str (str, optional): 开始时间，格式为YYYYMMDD. 如果为None, 则自动计算
         end_time_str (str, optional): 结束时间，格式为YYYYMMDD. 如果为None, 则使用当天
+        max_workers (int, optional): 最大线程数，默认为4
     """
+    # 验证周期类型
+    if period_type not in PERIOD_CONFIG:
+        raise ValueError(f"不支持的周期类型: {period_type}，支持的类型: {list(PERIOD_CONFIG.keys())}")
+
+    config = PERIOD_CONFIG[period_type]
+
     start_time = datetime.now()
-    logger.info(f"开始同步月K数据，当前时间：{start_time}")
+    logger.info(f"开始同步{config['period_name']}数据，当前时间：{start_time}")
 
     # 创建数据库引擎
     engine = create_engine(settings.SQLALCHEMY_MYSQL_DATABASE_URI, echo=False)
@@ -57,8 +92,8 @@ def main(stock_codes: list[str] = None, begin_time_str: str = None, end_time_str
         stock_codes=stock_codes,
         start_time_str=start_time_str,
         end_time_str=end_time_str,
-        period='1mon',
-        period_name='月K'
+        period=config['period'],
+        period_name=config['period_name']
     )
 
     download_end_time = datetime.now()
@@ -71,10 +106,10 @@ def main(stock_codes: list[str] = None, begin_time_str: str = None, end_time_str
         begin_time=begin_time,
         end_time=today,
         engine=engine,
-        model_cls=QmtStockMonthlyOri,
-        period='1mon',
-        period_name='月K',
-        max_workers=4
+        model_cls=config['model_cls'],
+        period=config['period'],
+        period_name=config['period_name'],
+        max_workers=max_workers
     )
 
     sync_end_time = datetime.now()
@@ -88,5 +123,31 @@ def main(stock_codes: list[str] = None, begin_time_str: str = None, end_time_str
     logger.info(f"总耗时：{datetime.now() - start_time}")
 
 
+def sync_daily_klines(stock_codes: list[str] = None, begin_time_str: str = None, end_time_str: str = None):
+    """同步日K数据的便捷函数"""
+    sync_stock_klines('daily', stock_codes, begin_time_str, end_time_str)
+
+
+def sync_weekly_klines(stock_codes: list[str] = None, begin_time_str: str = None, end_time_str: str = None):
+    """同步周K数据的便捷函数"""
+    sync_stock_klines('weekly', stock_codes, begin_time_str, end_time_str)
+
+
+def sync_monthly_klines(stock_codes: list[str] = None, begin_time_str: str = None, end_time_str: str = None):
+    """同步月K数据的便捷函数"""
+    sync_stock_klines('monthly', stock_codes, begin_time_str, end_time_str)
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+
+    # 从命令行参数获取周期类型，默认为日K
+    period_type = sys.argv[1] if len(sys.argv) > 1 else 'daily'
+
+    # 示例用法
+    sync_stock_klines(period_type)
+
+    # 或者可以分别调用
+    sync_daily_klines()
+    sync_weekly_klines()
+    sync_monthly_klines()
