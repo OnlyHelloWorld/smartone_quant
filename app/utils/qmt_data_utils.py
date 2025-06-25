@@ -78,7 +78,7 @@ def sync_stock_klines_to_db_single(
                 start_time=start_time_str,
                 end_time=end_time_str,
                 count=-1,
-                dividend_type='none',
+                dividend_type='front',
                 fill_data=False
             )
 
@@ -196,8 +196,8 @@ def get_time_range_for_sync():
     Returns:
         tuple: (begin_time, today)
     """
-    begin_time = datetime.now() - timedelta(days=8)
-    today = datetime.now().date() if datetime.now().hour >= 17 else (datetime.now() - timedelta(days=1)).date()
+    begin_time = datetime.now() - timedelta(days=3*365)
+    today = datetime.now().date() if datetime.now().hour >= 16 else (datetime.now() - timedelta(days=1)).date()
     return begin_time, today
 
 

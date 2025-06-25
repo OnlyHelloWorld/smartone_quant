@@ -1,11 +1,12 @@
 from datetime import datetime
+
 from sqlmodel import Session, create_engine
 
 from app.core.config import settings
 from cruds.qmt_sector_stock_crud import get_qmt_sector_stocks_by_sector_name
 from models.qmt_stock_daily import QmtStockDailyOri
-from models.qmt_stock_weekly import QmtStockWeeklyOri
 from models.qmt_stock_monthly import QmtStockMonthlyOri
+from models.qmt_stock_weekly import QmtStockWeeklyOri
 from utils.qmt_data_utils import (
     batch_download_stocks_data,
     sync_stocks_klines_with_threadpool,
@@ -139,15 +140,13 @@ def sync_monthly_klines(stock_codes: list[str] = None, begin_time_str: str = Non
 
 
 if __name__ == "__main__":
-    import sys
-
     # 从命令行参数获取周期类型，默认为日K
-    period_type = sys.argv[1] if len(sys.argv) > 1 else 'daily'
+    # period_type = sys.argv[1] if len(sys.argv) > 1 else 'daily'
 
     # 示例用法
-    sync_stock_klines(period_type)
+    # sync_stock_klines(period_type)
 
     # 或者可以分别调用
     sync_daily_klines()
-    sync_weekly_klines()
-    sync_monthly_klines()
+    # sync_weekly_klines()
+    # sync_monthly_klines()
