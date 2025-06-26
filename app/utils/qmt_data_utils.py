@@ -164,7 +164,6 @@ def sync_stocks_klines_with_threadpool(
         int: 总成功同步的记录数
     """
     logger.info(f"开始多线程同步{period_name}数据，线程数: {max_workers}")
-
     total_success = 0
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
@@ -237,7 +236,7 @@ def parse_stock_data(stock_data: dict, model_cls=QmtStockDailyOri) -> list:
                 amount=stock_amount
             )
             stock_list.append(stock_obj)
-
+    logger.info(f'解析完成，共解析出 {len(stock_list)} 条股票数据')
     return stock_list
 
 

@@ -3,6 +3,7 @@
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/app/cruds/akshare_trade_calendar_crud.py" dialect="MySQL" />
     <file url="file://$PROJECT_DIR$/app/cruds/qmt_sector_crud.py" dialect="MySQL" />
+    <file url="file://$PROJECT_DIR$/app/cruds/qmt_stock_divid_factors_crud.py" dialect="MySQL" />
     <file url="file://$PROJECT_DIR$/app/models/akshare_trade_calendar.py" dialect="MySQL" />
     <file url="file://$PROJECT_DIR$/app/models/qmt_sector.py" dialect="MySQL" />
     <file url="file://$PROJECT_DIR$/app/models/qmt_sector_stock.py" dialect="MySQL" />

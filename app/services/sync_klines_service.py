@@ -89,13 +89,13 @@ def sync_stock_klines(
     end_time_str = today.strftime('%Y%m%d')
     download_start_time = datetime.now()
 
-    batch_download_stocks_data(
-        stock_codes=stock_codes,
-        start_time_str=start_time_str,
-        end_time_str=end_time_str,
-        period=config['period'],
-        period_name=config['period_name']
-    )
+    # batch_download_stocks_data(
+    #     stock_codes=stock_codes,
+    #     start_time_str=start_time_str,
+    #     end_time_str=end_time_str,
+    #     period=config['period'],
+    #     period_name=config['period_name']
+    # )
 
     download_end_time = datetime.now()
 
@@ -140,13 +140,23 @@ def sync_monthly_klines(stock_codes: list[str] = None, begin_time_str: str = Non
 
 
 if __name__ == "__main__":
-    # 从命令行参数获取周期类型，默认为日K
-    # period_type = sys.argv[1] if len(sys.argv) > 1 else 'daily'
+    from datetime import datetime
 
-    # 示例用法
-    # sync_stock_klines(period_type)
+    today = datetime.now()
+    logger.info(f"当前日期：{today.strftime('%Y-%m-%d %A')}")
 
-    # 或者可以分别调用
+    # 每天同步日数据
+    logger.info("执行日K数据同步")
     sync_daily_klines()
-    # sync_weekly_klines()
-    # sync_monthly_klines()
+
+    # 每周一同步周数据
+    if today.weekday() == 0:  # 0表示周一
+        logger.info("今天是周一，执行周K数据同步")
+        sync_weekly_klines()
+
+    # 每月1号同步月数据
+    if today.day == 1:
+        logger.info("今天是月初，执行月K数据同步")
+        sync_monthly_klines()
+
+    logger.info("所有计划的同步任务已完成")

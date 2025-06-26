@@ -1,15 +1,16 @@
 import secrets
 import warnings
+import os
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from pydantic import (
     AnyUrl,
     BeforeValidator,
     EmailStr,
-    HttpUrl,
-    PostgresDsn,
     computed_field,
     model_validator,
+    Field,
 )
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,183 +18,228 @@ from typing_extensions import Self
 
 
 def parse_cors(v: Any) -> list[str] | str:
-    """
-    解析 CORS 配置。
-    :param v: 参数值，可以是字符串或列表。
-    :return:  如果是字符串且不以 "[" 开头，则将其拆分为列表；如果是列表或字符串，则直接返回。
-    """
+    """解析 CORS 配置"""
     if isinstance(v, str) and not v.startswith("["):
         return [i.strip() for i in v.split(",")]
-    elif isinstance(v, list | str):
+    elif isinstance(v, (list, str)):
         return v
-    raise ValueError(v)
+    raise ValueError(f"Invalid CORS value: {v}")
 
 
 class Settings(BaseSettings):
-    """
-    应用程序配置类，使用 Pydantic 进行设置管理。
-    包含数据库连接、CORS、邮件服务等配置。
-    """
-    # 使用顶层 .env 文件（位于 ./app/ 上一级目录）
+    """应用程序配置类"""
+
     model_config = SettingsConfigDict(
-        env_file="../.env",
-        # 忽略空环境变量
+        # 指定多个可能的 .env 文件位置
+        env_file=[
+            ".env",  # 当前目录
+            "app/.env",  # app 目录
+            "../.env",  # 上级目录
+            str(Path(__file__).parent.parent / ".env"),  # app/.env
+            str(Path(__file__).parent.parent.parent / ".env"),  # 项目根目录/.env
+        ],
         env_ignore_empty=True,
-        # 允许额外的环境变量
         extra="ignore",
+        case_sensitive=True,
     )
-    # API 路径前缀
-    API_V1_STR: str = "/api/v1"
-    # 安全密钥，用于加密和签名
-    SECRET_KEY: str = secrets.token_urlsafe(32)
-    # 60 minutes * 24 hours * 8 days = 8 days
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
-    # 前端主机地址
-    FRONTEND_HOST: str = "http://localhost:5173"
-    # 环境类型：本地、预发布或生产，默认为本地
-    ENVIRONMENT: Literal["local", "staging", "production"] = "local"
-    # 后端 CORS 允许的源地址列表, 默认为*, 允许所有源
+
+    # =============================================================================
+    # 基础配置 - 必填字段改为可选并提供默认值
+    # =============================================================================
+    PROJECT_NAME: str = Field(default="smartone_quant", description="项目名称")
+    ENVIRONMENT: Literal["local", "staging", "production"] = Field(
+        default="local", description="环境类型"
+    )
+    API_V1_STR: str = Field(default="/api/v1", description="API 路径前缀")
+
+    # =============================================================================
+    # 安全配置
+    # =============================================================================
+    SECRET_KEY: str = Field(
+        default_factory=lambda: secrets.token_urlsafe(32),
+        description="应用密钥"
+    )
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=60 * 24 * 8,  # 8 days
+        description="访问令牌过期时间（分钟）"
+    )
+
+    # =============================================================================
+    # CORS 配置
+    # =============================================================================
+    FRONTEND_HOST: str = Field(
+        default="http://localhost:5173",
+        description="前端主机地址"
+    )
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)
-    ] = []
+    ] = Field(default=[], description="CORS 允许的源地址")
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def all_cors_origins(self) -> list[str]:
-        """
-        获取所有 CORS 允许的源地址列表。
-        :return: list[str]: 返回一个字符串列表，包含所有允许的源地址。
-        """
-        return [str(origin).rstrip("/") for origin in self.BACKEND_CORS_ORIGINS] + [
-            self.FRONTEND_HOST
-        ]
-    # 项目名称
-    PROJECT_NAME: str
-    # Sentry 错误跟踪服务的 DSN
-    SENTRY_DSN: HttpUrl | None = None
-    # PostgreSQL 数据库服务器地址配置
-    POSTGRES_SERVER: str
-    # PostgreSQL 数据库端口，默认为 5432
-    POSTGRES_PORT: int = 5432
-    # PostgreSQL 数据库用户名
-    POSTGRES_USER: str
-    # PostgreSQL 数据库密码，默认为空字符串
-    POSTGRES_PASSWORD: str = ""
-    # PostgreSQL 数据库名称，默认为空字符串
-    POSTGRES_DB: str = ""
+        """获取所有 CORS 允许的源地址"""
+        origins = [str(origin).rstrip("/") for origin in self.BACKEND_CORS_ORIGINS]
+        if self.FRONTEND_HOST not in origins:
+            origins.append(self.FRONTEND_HOST)
+        return origins
 
-    @computed_field  # type: ignore[prop-decorator]
+    # =============================================================================
+    # PostgreSQL 数据库配置 - 改为可选并提供默认值
+    # =============================================================================
+    POSTGRES_SERVER: str = Field(default="localhost", description="PostgreSQL 服务器地址")
+    POSTGRES_PORT: int = Field(default=5432, description="PostgreSQL 端口")
+    POSTGRES_USER: str = Field(default="postgres", description="PostgreSQL 用户名")
+    POSTGRES_PASSWORD: str = Field(default="changethis", description="PostgreSQL 密码")
+    POSTGRES_DB: str = Field(default="smartone_quant", description="PostgreSQL 数据库名")
+
+    @computed_field
     @property
-    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
-        """
-        构建 SQLAlchemy 数据库连接 URI。
-        :return: PostgresDsn: 返回一个 PostgresDsn 对象，包含数据库连接信息。
-        """
-        return MultiHostUrl.build(
+    def SQLALCHEMY_DATABASE_URI(self) -> str:
+        """构建 PostgreSQL 数据库连接 URI"""
+        return str(MultiHostUrl.build(
             scheme="postgresql+psycopg",
             username=self.POSTGRES_USER,
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_SERVER,
             port=self.POSTGRES_PORT,
             path=self.POSTGRES_DB,
-        )
+        ))
 
-    # MySQL 数据库服务器地址配置
-    MYSQL_SERVER: str | None = None
-    # MySQL 数据库端口，默认为 3306
-    MYSQL_PORT: int = 3306
-    # MySQL 数据库用户名
-    MYSQL_USER: str | None = None
-    # MySQL 数据库密码，默认为空字符串
-    MYSQL_PASSWORD: str = ""
-    # MySQL 数据库名称，默认为空字符串
-    MYSQL_DB: str = ""
+    # =============================================================================
+    # MySQL 数据库配置
+    # =============================================================================
+    MYSQL_SERVER: str | None = Field(default=None, description="MySQL 服务器地址")
+    MYSQL_PORT: int = Field(default=3306, description="MySQL 端口")
+    MYSQL_USER: str | None = Field(default=None, description="MySQL 用户名")
+    MYSQL_PASSWORD: str = Field(default="", description="MySQL 密码")
+    MYSQL_DB: str = Field(default="", description="MySQL 数据库名")
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def SQLALCHEMY_MYSQL_DATABASE_URI(self) -> str | None:
-        """
-        构建 SQLAlchemy MySQL 数据库连接 URI。
-        :return: str | None: 返回一个 MySQL 连接字符串，若未配置则返回 None。
-        """
-        if self.MYSQL_SERVER and self.MYSQL_USER and self.MYSQL_DB:
-            return f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@{self.MYSQL_SERVER}:{self.MYSQL_PORT}/{self.MYSQL_DB}"
+        """构建 MySQL 数据库连接 URI"""
+        if all([self.MYSQL_SERVER, self.MYSQL_USER, self.MYSQL_DB]):
+            return (
+                f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}"
+                f"@{self.MYSQL_SERVER}:{self.MYSQL_PORT}/{self.MYSQL_DB}"
+                f"?charset=utf8mb4"
+            )
         return None
-    # SMTP 邮件服务器是否启用传输层安全协议TLS
-    SMTP_TLS: bool = True
-    # SMTP 邮件服务器是否启用安全套接层SSL
-    SMTP_SSL: bool = False
-    # SMTP 邮件服务器端口，默认为 587
-    SMTP_PORT: int = 587
-    # SMTP 邮件服务器地址, None 表示未设置
-    SMTP_HOST: str | None = None
-    # SMTP 邮件服务器用户名, None 表示未设置
-    SMTP_USER: str | None = None
-    # SMTP 邮件服务器密码, None 表示未设置
-    SMTP_PASSWORD: str | None = None
-    # 发件人邮箱地址, None 表示未设置
-    EMAILS_FROM_EMAIL: EmailStr | None = None
-    # 发件人名称, None 表示未设置
-    EMAILS_FROM_NAME: EmailStr | None = None
 
-    @model_validator(mode="after")
-    def _set_default_emails_from(self) -> Self:
-        """
-        设置默认的发件人名称，如果未设置则使用项目名称。
-        :return: Self: 返回当前设置实例。
-        """
-        if not self.EMAILS_FROM_NAME:
-            self.EMAILS_FROM_NAME = self.PROJECT_NAME
-        return self
-    # 邮件重置令牌过期时间，单位为小时
-    EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
+    # =============================================================================
+    # 邮件服务配置
+    # =============================================================================
+    SMTP_TLS: bool = Field(default=True, description="SMTP TLS")
+    SMTP_SSL: bool = Field(default=False, description="SMTP SSL")
+    SMTP_PORT: int = Field(default=587, description="SMTP 端口")
+    SMTP_HOST: str | None = Field(default=None, description="SMTP 服务器")
+    SMTP_USER: str | None = Field(default=None, description="SMTP 用户名")
+    SMTP_PASSWORD: str | None = Field(default=None, description="SMTP 密码")
+    EMAILS_FROM_EMAIL: EmailStr | None = Field(default=None, description="发件人邮箱")
+    EMAILS_FROM_NAME: str | None = Field(default=None, description="发件人名称")
+    EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = Field(
+        default=48, description="邮件重置令牌过期时间（小时）"
+    )
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def emails_enabled(self) -> bool:
-        """
-        检查邮件服务是否启用。
-        :return: bool: 如果 SMTP_HOST 和 EMAILS_FROM_EMAIL 都已设置，则返回 True，否则返回 False。
-        """
+        """检查邮件服务是否启用"""
         return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
-    # 测试用户邮箱地址
-    EMAIL_TEST_USER: EmailStr = "test@example.com"
-    # 第一个超级用户的邮箱地址
-    FIRST_SUPERUSER: EmailStr
-    # 第一个超级用户的密码
-    FIRST_SUPERUSER_PASSWORD: str
 
+    # =============================================================================
+    # 用户配置 - 改为可选并提供默认值
+    # =============================================================================
+    EMAIL_TEST_USER: EmailStr = Field(
+        default="test@example.com", description="测试用户邮箱"
+    )
+    FIRST_SUPERUSER: EmailStr = Field(
+        default="admin@example.com", description="第一个超级用户邮箱"
+    )
+    FIRST_SUPERUSER_PASSWORD: str = Field(
+        default="changethis", description="第一个超级用户密码"
+    )
+
+    # =============================================================================
+    # 外部服务配置
+    # =============================================================================
+    SENTRY_DSN: str | None = Field(default=None, description="Sentry DSN")
+
+    # =============================================================================
+    # 验证方法
+    # =============================================================================
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
-        """
-        检查是否使用了默认的安全密钥或密码。
-        :param var_name: str, 变量名称，用于日志记录。
-        :param value: str | None, 变量值，检查是否为默认值 "changethis"。
-        :return:
-        """
+        """检查是否使用默认密钥"""
         if value == "changethis":
             message = (
-                f'The value of {var_name} is "changethis", '
-                "for security, please change it, at least for deployments."
+                f'变量 {var_name} 的值为 "changethis"，'
+                "为了安全，请修改此值，特别是在生产环境中。"
             )
             if self.ENVIRONMENT == "local":
-                warnings.warn(message, stacklevel=1)
+                warnings.warn(message, stacklevel=2)
             else:
                 raise ValueError(message)
 
     @model_validator(mode="after")
-    def _enforce_non_default_secrets(self) -> Self:
-        """
-        强制检查所有敏感配置项是否使用了非默认值。
-        :return: Self: 返回当前设置实例。
-        """
-        # 检查 SECRET_KEY、POSTGRES_PASSWORD 和 FIRST_SUPERUSER_PASSWORD 是否使用了默认值
-        self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
-        self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
-        self._check_default_secret(
-            "FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD
-        )
-
+    def _set_default_emails_from(self) -> Self:
+        """设置默认发件人名称"""
+        if not self.EMAILS_FROM_NAME:
+            self.EMAILS_FROM_NAME = self.PROJECT_NAME
         return self
 
-# 创建 Settings 实例
-settings = Settings()  # type: ignore
+    @model_validator(mode="after")
+    def _enforce_non_default_secrets(self) -> Self:
+        """强制检查敏感配置"""
+        if self.ENVIRONMENT != "local":  # 只在非本地环境检查
+            self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
+            self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
+            self._check_default_secret("FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD)
+        return self
+
+
+# 创建配置实例，包含调试信息
+def create_settings():
+    """创建设置实例并显示调试信息"""
+    print("正在加载配置...")
+
+    # 显示当前工作目录
+    print(f"当前工作目录: {os.getcwd()}")
+
+    # 检查可能的 .env 文件位置
+    current_file = Path(__file__)
+    possible_env_files = [
+        Path.cwd() / ".env",
+        current_file.parent / ".env",
+        current_file.parent.parent / ".env",
+        current_file.parent.parent.parent / ".env",
+    ]
+
+    print("检查 .env 文件位置:")
+    for env_file in possible_env_files:
+        exists = env_file.exists()
+        print(f"  {env_file}: {'✓ 存在' if exists else '✗ 不存在'}")
+        if exists:
+            print(f"    文件大小: {env_file.stat().st_size} bytes")
+
+    # 检查关键环境变量
+    key_vars = ['PROJECT_NAME', 'POSTGRES_SERVER', 'POSTGRES_USER', 'FIRST_SUPERUSER']
+    print("检查环境变量:")
+    for var in key_vars:
+        value = os.getenv(var)
+        print(f"  {var}: {'✓ 已设置' if value else '✗ 未设置'}")
+
+    try:
+        settings = Settings()
+        print("✓ 配置加载成功!")
+        return settings
+    except Exception as e:
+        print(f"✗ 配置加载失败: {e}")
+        raise
+
+
+# 根据是否为主模块决定是否显示调试信息
+if __name__ == "__main__":
+    settings = create_settings()
+else:
+    settings = Settings()
