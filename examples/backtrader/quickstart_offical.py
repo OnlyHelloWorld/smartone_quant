@@ -1,59 +1,67 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import datetime  # 导入日期时间对象
-import os.path  # 用于管理路径
-import sys  # 用于获取脚本名称（在 argv[0] 中）
+import datetime  # For datetime objects
+import os.path  # To manage paths
+import sys  # To find out the script name (in argv[0])
 
-# 导入 backtrader 平台
+# Import the backtrader platform
 import backtrader as bt
 
 
-# 创建一个策略
+# Create a Stratey
 class TestStrategy(bt.Strategy):
     params = (
         ('maperiod', 15),
-        ('printlog', False),
     )
 
-    def log(self, txt, dt=None, doprint=False):
-        ''' 策略的日志记录函数 '''
-        if self.params.printlog or doprint:
-            dt = dt or self.datas[0].datetime.date(0)
-            print('%s, %s' % (dt.isoformat(), txt))
+    def log(self, txt, dt=None):
+        ''' Logging function fot this strategy'''
+        dt = dt or self.datas[0].datetime.date(0)
+        print('%s, %s' % (dt.isoformat(), txt))
 
     def __init__(self):
-        # 保留对 data[0] 数据序列中“收盘价”行的引用
+        # Keep a reference to the "close" line in the data[0] dataseries
         self.dataclose = self.datas[0].close
 
-        # 用于跟踪未完成订单及买入价格/手续费
+        # To keep track of pending orders and buy price/commission
         self.order = None
         self.buyprice = None
         self.buycomm = None
 
-        # 添加简单移动平均指标
+        # Add a MovingAverageSimple indicator
         self.sma = bt.indicators.SimpleMovingAverage(
             self.datas[0], period=self.params.maperiod)
 
+        # Indicators for the plotting show
+        bt.indicators.ExponentialMovingAverage(self.datas[0], period=25)
+        bt.indicators.WeightedMovingAverage(self.datas[0], period=25,
+                                            subplot=True)
+        bt.indicators.StochasticSlow(self.datas[0])
+        bt.indicators.MACDHisto(self.datas[0])
+        rsi = bt.indicators.RSI(self.datas[0])
+        bt.indicators.SmoothedMovingAverage(rsi, period=10)
+        bt.indicators.ATR(self.datas[0], plot=False)
+
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
-            # 买/卖单已提交/已接受 - 无需处理
+            # Buy/Sell order submitted/accepted to/by broker - Nothing to do
             return
 
-        # 检查订单是否已完成
-        # 注意：如果资金不足，券商可能会拒绝订单
+        # Check if an order has been completed
+        # Attention: broker could reject order if not enough cash
         if order.status in [order.Completed]:
             if order.isbuy():
                 self.log(
-                    '买单执行, 价格: %.2f, 成本: %.2f, 手续费 %.2f' %
+                    'BUY EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
                     (order.executed.price,
                      order.executed.value,
                      order.executed.comm))
 
                 self.buyprice = order.executed.price
                 self.buycomm = order.executed.comm
-            else:  # 卖出
-                self.log('卖单执行, 价格: %.2f, 成本: %.2f, 手续费 %.2f' %
+            else:  # Sell
+                self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' %
                          (order.executed.price,
                           order.executed.value,
                           order.executed.comm))
@@ -61,99 +69,90 @@ class TestStrategy(bt.Strategy):
             self.bar_executed = len(self)
 
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            self.log('订单已取消/保证金不足/被拒绝')
+            self.log('Order Canceled/Margin/Rejected')
 
-        # 记录：无未完成订单
+        # Write down: no pending order
         self.order = None
 
     def notify_trade(self, trade):
         if not trade.isclosed:
             return
 
-        self.log('操作盈亏, 毛利 %.2f, 净利 %.2f' %
+        self.log('OPERATION PROFIT, GROSS %.2f, NET %.2f' %
                  (trade.pnl, trade.pnlcomm))
 
     def next(self):
-        # 简单记录当前收盘价
-        self.log('收盘价, %.2f' % self.dataclose[0])
+        # Simply log the closing price of the series from the reference
+        self.log('Close, %.2f' % self.dataclose[0])
 
-        # 检查是否有未完成订单...如果有，则不能再发送第二个订单
+        # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
             return
 
-        # 检查是否持仓
+        # Check if we are in the market
         if not self.position:
 
-            # 尚未持仓...如果满足条件则可以买入
+            # Not yet ... we MIGHT BUY if ...
             if self.dataclose[0] > self.sma[0]:
 
-                # 买入！（使用所有默认参数）
-                self.log('发出买入指令, %.2f' % self.dataclose[0])
+                # BUY, BUY, BUY!!! (with all possible default parameters)
+                self.log('BUY CREATE, %.2f' % self.dataclose[0])
 
-                # 记录已创建的订单，避免重复下单
+                # Keep track of the created order to avoid a 2nd order
                 self.order = self.buy()
 
         else:
 
             if self.dataclose[0] < self.sma[0]:
-                # 卖出！（使用所有默认参数）
-                self.log('发出卖出指令, %.2f' % self.dataclose[0])
+                # SELL, SELL, SELL!!! (with all possible default parameters)
+                self.log('SELL CREATE, %.2f' % self.dataclose[0])
 
-                # 记录已创建的订单，避免重复下单
+                # Keep track of the created order to avoid a 2nd order
                 self.order = self.sell()
-
-    def stop(self):
-        self.log('(均线周期 %2d) 期末资产 %.2f' %
-                 (self.params.maperiod, self.broker.getvalue()), doprint=True)
 
 
 if __name__ == '__main__':
-    # 创建 cerebro 实例
+    # Create a cerebro entity
     cerebro = bt.Cerebro()
 
-    # 添加策略
-    strats = cerebro.optstrategy(
-        TestStrategy,
-        maperiod=range(10, 31))
+    # Add a strategy
+    cerebro.addstrategy(TestStrategy)
 
-    # 数据文件在 samples 的子文件夹中。需要找到脚本所在路径
-    # 因为脚本可能从任意位置调用
+    # Datas are in a subfolder of the samples. Need to find where the script is
+    # because it could have been called from anywhere
     modpath = os.path.dirname(os.path.abspath(sys.argv[0]))
-    datapath = os.path.join(modpath, './000001.SZ.csv')
+    datapath = os.path.join(modpath, './orcl-1995-2014.txt')
 
-    # 创建数据源
-    data = bt.feeds.GenericCSVData(
+    # Create a Data Feed
+    data = bt.feeds.YahooFinanceCSVData(
         dataname=datapath,
-        # 不传递此日期之前的数据
-        fromdate=datetime.datetime(2022, 7, 1),
-        # 不传递此日期之后的数据
-        todate=datetime.datetime(2025, 6, 1),
-        # 不反转数据
-        dtformat=('%Y-%m-%d'),
-        datetime=0,  # 日期所在列索引 (例如，第0列) [12, 14]
-        high=1,  # High 价格所在列索引 (例如，第1列) [12, 14]
-        low=2,  # Low 价格所在列索引 (例如，第2列) [12, 14]
-        open=3,  # Open 价格所在列索引 (例如，第3列) [12, 14]
-        close=4,  # Close 价格所在列索引 (例如，第4列) [12, 14]
-        volume=5,  # Volume 所在列索引 (例如，第5列) [12, 14]
-        openinterest=-1,  # Open Interest 所在列索引 (-1 表示不存在) [12, 14]
-        headers=False,  # CSV 文件是否包含标题行 (默认 True) [2, 14, 15]
-        separator=',',  # 分隔符 (默认 ",") [2, 14, 15]
-        name='000001'
+        # Do not pass values before this date
+        fromdate=datetime.datetime(2000, 1, 1),
+        # Do not pass values before this date
+        todate=datetime.datetime(2000, 12, 31),
+        # Do not pass values after this date
+        reverse=False)
 
-    )
-
-    # 将数据源添加到 cerebro
+    # Add the Data Feed to Cerebro
     cerebro.adddata(data)
 
-    # 设置初始资金
+    # Set our desired cash start
     cerebro.broker.setcash(1000.0)
 
-    # 添加定额买入的资金管理
+    # Add a FixedSize sizer according to the stake
     cerebro.addsizer(bt.sizers.FixedSize, stake=10)
 
-    # 设置手续费
+    # Set the commission
     cerebro.broker.setcommission(commission=0.0)
 
-    # 运行回测
-    cerebro.run(maxcpus=1)
+    # Print out the starting conditions
+    print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+
+    # Run over everything
+    cerebro.run()
+
+    # Print out the final result
+    print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+
+    # Plot the result
+    cerebro.plot()

@@ -121,17 +121,29 @@ if __name__ == '__main__':
     # Datas are in a subfolder of the samples. Need to find where the script is
     # because it could have been called from anywhere
     modpath = os.path.dirname(os.path.abspath(sys.argv[0]))
-    datapath = os.path.join(modpath, './orcl-1995-2014.txt')
+    datapath = os.path.join(modpath, './000001.SZ.csv')
 
-    # Create a Data Feed
-    data = bt.feeds.YahooFinanceCSVData(
+    # 创建数据源
+    data = bt.feeds.GenericCSVData(
         dataname=datapath,
-        # Do not pass values before this date
-        fromdate=datetime.datetime(2000, 1, 1),
-        # Do not pass values before this date
-        todate=datetime.datetime(2000, 12, 31),
-        # Do not pass values after this date
-        reverse=False)
+        # 不传递此日期之前的数据
+        fromdate=datetime.datetime(2022, 7, 1),
+        # 不传递此日期之后的数据
+        todate=datetime.datetime(2025, 6, 1),
+        # 不反转数据
+        dtformat=('%Y-%m-%d'),
+        datetime=0,  # 日期所在列索引 (例如，第0列) [12, 14]
+        high=1,  # High 价格所在列索引 (例如，第1列) [12, 14]
+        low=2,  # Low 价格所在列索引 (例如，第2列) [12, 14]
+        open=3,  # Open 价格所在列索引 (例如，第3列) [12, 14]
+        close=4,  # Close 价格所在列索引 (例如，第4列) [12, 14]
+        volume=5,  # Volume 所在列索引 (例如，第5列) [12, 14]
+        openinterest=-1,  # Open Interest 所在列索引 (-1 表示不存在) [12, 14]
+        headers=False,  # CSV 文件是否包含标题行 (默认 True) [2, 14, 15]
+        separator=',',  # 分隔符 (默认 ",") [2, 14, 15]
+        name='000001'
+
+    )
 
     # Add the Data Feed to Cerebro
     cerebro.adddata(data)
