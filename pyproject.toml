@@ -22,4 +22,5 @@ dependencies = [
     "akshare>=1.17.5",
     "pandas-stubs==2.2.3.250527",
     "concurrent-log-handler>=0.9.28",
+    "matplotlib>=3.10.3",
 ]

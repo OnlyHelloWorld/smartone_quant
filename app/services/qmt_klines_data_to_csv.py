@@ -1,16 +1,18 @@
 import os
-import pandas as pd
 from datetime import datetime, timedelta
-from sqlmodel import Session, select
-from app.models.qmt_stock_daily import QmtStockDailyOri
-from app.models.qmt_stock_weekly import QmtStockWeeklyOri
-from app.models.qmt_stock_monthly import QmtStockMonthlyOri
+
+import pandas as pd
+from sqlmodel import create_engine, Session
+from sqlmodel import select
+
+from app.core.config import settings
 from app.models.akshare_trade_calendar import AkshareTradeCalendar
+from app.models.qmt_stock_daily import QmtStockDailyOri
+from app.models.qmt_stock_monthly import QmtStockMonthlyOri
+from app.models.qmt_stock_weekly import QmtStockWeeklyOri
 from cruds.qmt_sector_stock_crud import get_qmt_sector_stocks_by_sector_name
 from utils.qmt_data_utils import clean_kline_data
 from utils.quant_logger import init_logger
-from app.core.config import settings
-from sqlmodel import create_engine, Session
 
 logger = init_logger()
 
@@ -77,9 +79,11 @@ def export_kline_to_csv(session: Session, stock_code: str, start_time: datetime,
             'time': [datetime.combine(date, datetime.min.time()) for date in monthly_dates]
         })
 
+    logger.info(f'期间交易日数量为：{len(df_calendar)}')
+    logger.info(f'获取到的股票交易日数量为：{len(df_new)}')
     # 标记缺失数据
     df_new = df_new.copy()
-    df_new['time'] = pd.to_datetime(df_new['time'])
+    df_new['time'] = pd.to_datetime(df_new['time'],format='%Y-%m-%d')
     df_merged = pd.merge(df_calendar, df_new, on='time', how='left')
     df_merged['is_missing'] = df_merged['open'].isna()
 
@@ -102,7 +106,7 @@ def export_kline_to_csv(session: Session, stock_code: str, start_time: datetime,
     if os.path.exists(out_path):
         columns = ['time', 'open', 'high', 'low', 'close', 'volume', 'amount']
         df_old = pd.read_csv(out_path, header=None, names=columns)
-        df_old['time'] = pd.to_datetime(df_old['time'], errors='coerce')
+        df_old['time'] = pd.to_datetime(df_old['time'], errors='coerce',format='%Y-%m-%d')
         logger.info(f'读取已有的 {out_path}，包含 {len(df_old)} 条记录')
         # 分为三段：前段（小于start_time），新数据，后段（大于end_time）
         df_before = df_old[df_old['time'] < start_time]
@@ -130,14 +134,22 @@ if __name__ == "__main__":
         # 取三年前的日期
         three_years_ago = (datetime.now() - timedelta(days=3 * 365))
         logger.info(f'三年前的日期为：{three_years_ago}')
+        # 转换为当日0点时间
+        three_years_ago = three_years_ago.replace(hour=0, minute=0, second=0, microsecond=0)
+        logger.info(f'三年前的日期（当日0点）为：{three_years_ago}')
         # 获取今天日期
         today = datetime.now()
+        # 减去5天
+        today = today - timedelta(days=5)
         logger.info(f'今天的日期为：{today}')
+        # 转换为当日0点时间
+        today = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        logger.info(f'今天的日期（当日0点）为：{today}')
 
         with Session(engine) as session:
             sector_stocks = get_qmt_sector_stocks_by_sector_name(
                 session=session,
-                sector_name="沪深A股"
+                sector_name="沪深300"
             )
             total_count = len(sector_stocks)
 

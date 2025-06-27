@@ -239,7 +239,9 @@ def create_settings():
 
 
 # 根据是否为主模块决定是否显示调试信息
-if __name__ == "__main__":
-    settings = create_settings()
-else:
-    settings = Settings()
+# if __name__ == "__main__":
+#     settings = create_settings()
+# else:
+#     settings = Settings()
+
+settings = Settings()
