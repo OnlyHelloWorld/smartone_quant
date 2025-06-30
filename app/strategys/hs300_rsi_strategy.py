@@ -331,7 +331,8 @@ def run_strategy():
 
         try:
             # 读取CSV数据
-            df = pd.read_csv(csv_file)
+            columns = ['time', 'open', 'high', 'low', 'close', 'volume', 'amount']
+            df = pd.read_csv(csv_file, header=None, names=columns)
 
             # 检查必要的列是否存在
             required_columns = ['time', 'open', 'high', 'low', 'close', 'volume']
