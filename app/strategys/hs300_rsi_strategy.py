@@ -18,6 +18,11 @@ class HS300RSIStrategy(bt.Strategy):
         ('industry_file', '../stock_data/sector_stocks/300SW1_sectors_stocks.csv'),  # 行业分类文件
     )
 
+    def log(self, txt, dt=None):
+        """输出日志"""
+        dt = dt or self.datas[0].datetime.date(0)
+        print(f'{dt.isoformat()} {txt}')
+
     def __init__(self):
         # 加载行业分类数据
         self.industry_mapping = self.load_industry_classification()
@@ -88,10 +93,6 @@ class HS300RSIStrategy(bt.Strategy):
         missing_stocks = [stock for stock in self.data_names if stock not in self.industry_mapping]
         if missing_stocks:
             self.log(f"缺少行业分类的股票: {missing_stocks[:10]}...")  # 只显示前10个
-        """记录日志"""
-        if self.log_enabled:
-            dt = dt or self.datas[0].datetime.date(0)
-            print(f'{dt.isoformat()}: {txt}')
 
     def notify_order(self, order):
         """订单状态通知"""
